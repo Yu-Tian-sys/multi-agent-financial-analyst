@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Literal
 from functools import partial
 
@@ -18,8 +19,12 @@ from src.agents.risk import risk_node
 from src.agents.report_writer import report_writer_node
 from src.agents.compliance import compliance_node
 from src.memory.integration import recall_node, save_node
+from src.observability.tracer import Tracer
 
 logger = logging.getLogger(__name__)
+
+# 全局 Tracer 实例（在 build_graph 中初始化）
+_tracer = None
 
 
 # ========================================
@@ -109,8 +114,10 @@ def build_graph() -> StateGraph:
     """
     graph = StateGraph(FinanceState)
 
-    # 创建一个全局 Database 实例用于记忆
+    # 创建全局 Database + Tracer 实例
+    global _tracer
     _db = Database()
+    _tracer = Tracer(db=_db)
 
     def _recall_wrapper(state):
         return recall_node(state, _db)
@@ -118,20 +125,37 @@ def build_graph() -> StateGraph:
     def _save_wrapper(state):
         return save_node(state, _db)
 
-    # 1. 添加所有节点
-    graph.add_node("precheck", precheck_node)
-    graph.add_node("memory_recall", _recall_wrapper)
-    graph.add_node("planner", planner_node)
-    graph.add_node("financial", financial_analyst_node)
-    graph.add_node("news", news_analyst_node)
-    graph.add_node("report", report_analyst_node)
-    graph.add_node("validator", validator_node)
-    graph.add_node("debate", debate_node)
-    graph.add_node("risk", risk_node)
-    graph.add_node("writer", report_writer_node)
-    graph.add_node("compliance", compliance_node)
-    graph.add_node("memory_save", _save_wrapper)
-    graph.add_node("finalize", finalize_node)
+    def _wrap(agent_name, node_func):
+        """包装节点函数，记录追踪事件"""
+        def wrapped(state):
+            trace_id = state.get("task_id", "unknown")
+            start = time.time()
+            _tracer.log_event(trace_id, agent_name, "start",
+                              content=state.get("topic", ""),
+                              task_id=trace_id)
+            result = node_func(state)
+            elapsed = time.time() - start
+            _tracer.log_event(trace_id, agent_name, "end",
+                              content=f"status={result.get('status', '')}",
+                              duration=elapsed,
+                              task_id=trace_id)
+            return result
+        return wrapped
+
+    # 1. 添加所有节点（全部用 _wrap 包裹以记录追踪）
+    graph.add_node("precheck", _wrap("precheck", precheck_node))
+    graph.add_node("memory_recall", _wrap("memory_recall", _recall_wrapper))
+    graph.add_node("planner", _wrap("planner", planner_node))
+    graph.add_node("financial", _wrap("financial", financial_analyst_node))
+    graph.add_node("news", _wrap("news", news_analyst_node))
+    graph.add_node("report", _wrap("report", report_analyst_node))
+    graph.add_node("validator", _wrap("validator", validator_node))
+    graph.add_node("debate", _wrap("debate", debate_node))
+    graph.add_node("risk", _wrap("risk", risk_node))
+    graph.add_node("writer", _wrap("writer", report_writer_node))
+    graph.add_node("compliance", _wrap("compliance", compliance_node))
+    graph.add_node("memory_save", _wrap("memory_save", _save_wrapper))
+    graph.add_node("finalize", _wrap("finalize", finalize_node))
 
     # 2. 入口
     graph.set_entry_point("precheck")
@@ -193,6 +217,8 @@ def run_pipeline(task_id: str, user_id: str, user_role: str, topic: str) -> dict
         最终状态
     """
     from src.state import create_initial_state
+    if _tracer is not None:
+        _tracer.start_trace(task_id, task_id=task_id, topic=topic)
     initial = create_initial_state(task_id, user_id, user_role, topic)
     logger.info(f"[graph] 启动流水线：{task_id} / {topic}")
     result = app.invoke(initial)

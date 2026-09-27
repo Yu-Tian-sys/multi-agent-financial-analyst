@@ -98,6 +98,54 @@ def _run_pipeline_task(task_id: str, user_id: str, user_role: str, topic: str) -
 
 
 # ========================================
+# 辅助函数
+# ========================================
+
+def _events_to_mermaid(events: list) -> str:
+    """从事件列表生成 Mermaid 时序图"""
+    if not events:
+        return "sequenceDiagram\n    Note over system: 无事件"
+
+    agents = sorted(set(e["agent"] for e in events if e["agent"] != "system"))
+    lines = ["sequenceDiagram", "    participant system"]
+    for a in agents:
+        lines.append(f"    participant {a}")
+
+    for e in events:
+        agent = e["agent"]
+        action = e["action"]
+        content = (e.get("content") or "").replace('"', "'")[:50]
+        duration = e.get("duration")
+        tokens = e.get("tokens", 0)
+
+        if agent == "system":
+            continue
+        if action == "start":
+            lines.append(f"    system->>{agent}: start")
+        elif action == "end":
+            lines.append(f"    {agent}-->>system: end ({duration}s)")
+        elif action == "llm_call":
+            lines.append(f"    Note over {agent}: LLM {tokens}tok")
+        elif action == "error":
+            lines.append(f"    Note over {agent}: ERROR {content}")
+
+    return "\n".join(lines)
+
+
+def _summarize_events(events: list) -> dict:
+    """从事件列表汇总统计"""
+    if not events:
+        return {"total_events": 0, "total_tokens": 0, "total_cost": 0.0, "total_duration": 0.0}
+    return {
+        "total_events": len(events),
+        "agents": sorted(set(e["agent"] for e in events)),
+        "total_tokens": sum(e.get("tokens", 0) or 0 for e in events),
+        "total_cost": round(sum(e.get("cost", 0.0) or 0.0 for e in events), 6),
+        "total_duration": round(sum(e.get("duration", 0.0) or 0.0 for e in events), 3),
+    }
+
+
+# ========================================
 # 接口
 # ========================================
 
@@ -215,6 +263,50 @@ def cost():
         # 兼容旧字段（语义变为"有成本记录的任务数"）
         "llm_calls": total_tasks,
     }
+
+
+@app.get("/trace/{task_id}")
+def get_trace(task_id: str):
+    """
+    查询任务的追踪信息
+
+    Args:
+        task_id: 任务 ID
+
+    Returns:
+        {events, mermaid, summary}
+    """
+    from src.observability.tracer import Tracer
+
+    tracer = Tracer(db=db)
+    events = tracer.get_trace_from_db(task_id)
+    if not events:
+        raise HTTPException(status_code=404, detail="无追踪记录")
+
+    mermaid = _events_to_mermaid(events)
+    summary = _summarize_events(events)
+
+    return {
+        "task_id": task_id,
+        "events": events,
+        "mermaid": mermaid,
+        "summary": summary,
+    }
+
+
+@app.get("/overview")
+def overview():
+    """
+    全局可观测性概览
+
+    Returns:
+        Markdown 格式报告
+    """
+    from src.observability.metrics import Metrics
+    from src.observability.dashboard import overview_report
+
+    m = Metrics(db)
+    return {"report": overview_report(m)}
 
 
 # ========================================
