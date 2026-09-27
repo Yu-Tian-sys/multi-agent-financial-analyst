@@ -1,10 +1,12 @@
 import logging
 from typing import Literal
+from functools import partial
 
 from langgraph.graph import StateGraph, END, START
 from langgraph.constants import Send
 
 from src.state import FinanceState
+from src.db import Database
 from src.agents.precheck import precheck_node
 from src.agents.planner import planner_node
 from src.agents.financial_analyst import financial_analyst_node
@@ -15,6 +17,7 @@ from src.agents.debate import debate_node
 from src.agents.risk import risk_node
 from src.agents.report_writer import report_writer_node
 from src.agents.compliance import compliance_node
+from src.memory.integration import recall_node, save_node
 
 logger = logging.getLogger(__name__)
 
@@ -101,13 +104,23 @@ def build_graph() -> StateGraph:
         编译后的图（可调用 invoke）
 
     流程：
-    START → precheck → (条件) → planner → 并行(3个) → validator
-          → debate → risk → writer → compliance → finalize → END
+    START → precheck → memory_recall → (条件) → planner → 并行(3个) → validator
+          → debate → risk → writer → compliance → memory_save → finalize → END
     """
     graph = StateGraph(FinanceState)
 
+    # 创建一个全局 Database 实例用于记忆
+    _db = Database()
+
+    def _recall_wrapper(state):
+        return recall_node(state, _db)
+
+    def _save_wrapper(state):
+        return save_node(state, _db)
+
     # 1. 添加所有节点
     graph.add_node("precheck", precheck_node)
+    graph.add_node("memory_recall", _recall_wrapper)
     graph.add_node("planner", planner_node)
     graph.add_node("financial", financial_analyst_node)
     graph.add_node("news", news_analyst_node)
@@ -117,14 +130,16 @@ def build_graph() -> StateGraph:
     graph.add_node("risk", risk_node)
     graph.add_node("writer", report_writer_node)
     graph.add_node("compliance", compliance_node)
+    graph.add_node("memory_save", _save_wrapper)
     graph.add_node("finalize", finalize_node)
 
     # 2. 入口
     graph.set_entry_point("precheck")
 
-    # 3. precheck 后条件路由
+    # 3. precheck → memory_recall → (条件路由)
+    graph.add_edge("precheck", "memory_recall")
     graph.add_conditional_edges(
-        "precheck",
+        "memory_recall",
         route_after_precheck,
         {
             "planner": "planner",
@@ -149,7 +164,8 @@ def build_graph() -> StateGraph:
     graph.add_edge("debate", "risk")
     graph.add_edge("risk", "writer")
     graph.add_edge("writer", "compliance")
-    graph.add_edge("compliance", "finalize")
+    graph.add_edge("compliance", "memory_save")
+    graph.add_edge("memory_save", "finalize")
     graph.add_edge("finalize", END)
 
     return graph.compile()
