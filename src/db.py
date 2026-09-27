@@ -32,6 +32,9 @@ class Database:
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         # 让查询结果可以按列名访问
         self.conn.row_factory = sqlite3.Row
+        # 开启 WAL 模式，允许并发读 + 单写，减少多线程锁等待
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA busy_timeout=5000")
         self._init_tables()
 
     def _init_tables(self):

@@ -1,5 +1,6 @@
 import json
 import logging
+import threading
 from datetime import datetime
 from typing import Optional, List, Dict
 
@@ -18,6 +19,7 @@ class Tracer:
         """
         self.db = db
         self.events: Dict[str, List[Dict]] = {}
+        self._lock = threading.Lock()  # 串行化 DB 写入
 
         if db is not None:
             self._init_table()
@@ -107,23 +109,24 @@ class Tracer:
             self.events[trace_id] = []
         self.events[trace_id].append(event)
 
-        # 写数据库
+        # 写数据库（加锁，防止多线程并发写冲突）
         if self.db is not None:
-            try:
-                self.db.conn.execute(
-                    """INSERT INTO traces
-                       (trace_id, task_id, agent, action, content, metadata,
-                        duration, tokens, cost, created_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        trace_id, task_id, agent, action, event["content"],
-                        json.dumps(event["metadata"], ensure_ascii=False),
-                        duration, tokens, cost, event["timestamp"],
+            with self._lock:
+                try:
+                    self.db.conn.execute(
+                        """INSERT INTO traces
+                           (trace_id, task_id, agent, action, content, metadata,
+                            duration, tokens, cost, created_at)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            trace_id, task_id, agent, action, event["content"],
+                            json.dumps(event["metadata"], ensure_ascii=False),
+                            duration, tokens, cost, event["timestamp"],
+                        )
                     )
-                )
-                self.db.conn.commit()
-            except Exception as e:
-                logger.warning(f"[tracer] 持久化失败：{e}")
+                    self.db.conn.commit()
+                except Exception as e:
+                    logger.warning(f"[tracer] 持久化失败：{e}")
 
     def get_trace(self, trace_id: str) -> List[Dict]:
         """

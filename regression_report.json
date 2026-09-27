@@ -1,0 +1,59 @@
+{
+  "总标的数": 3,
+  "完成数": 3,
+  "类型识别正确": 2,
+  "总 tokens": 90834,
+  "总成本": 0.0908,
+  "成功率": "100%",
+  "timestamp": "2026-09-27T22:33:10.120797",
+  "results": [
+    {
+      "topic": "AAPL",
+      "expected_type": "科技",
+      "task_id": "regression-AAPL-1790519439",
+      "status": "completed",
+      "company_type": "科技",
+      "type_match": true,
+      "debate_rounds": 3,
+      "risk_level": "高",
+      "compliance_passed": true,
+      "final_report_len": 2497,
+      "total_tokens": 26688,
+      "total_cost": 0.026688000000000003,
+      "elapsed": 45.2,
+      "error": ""
+    },
+    {
+      "topic": "TSLA",
+      "expected_type": "消费",
+      "task_id": "regression-TSLA-1790519484",
+      "status": "completed",
+      "company_type": "科技",
+      "type_match": false,
+      "debate_rounds": 3,
+      "risk_level": "高",
+      "compliance_passed": true,
+      "final_report_len": 2385,
+      "total_tokens": 29274,
+      "total_cost": 0.029273999999999998,
+      "elapsed": 48.3,
+      "error": ""
+    },
+    {
+      "topic": "招商银行",
+      "expected_type": "银行",
+      "task_id": "regression-招商银行-1790519533",
+      "status": "completed",
+      "company_type": "银行",
+      "type_match": true,
+      "debate_rounds": 3,
+      "risk_level": "高",
+      "compliance_passed": true,
+      "final_report_len": 2512,
+      "total_tokens": 34872,
+      "total_cost": 0.034872,
+      "elapsed": 56.8,
+      "error": ""
+    }
+  ]
+}
