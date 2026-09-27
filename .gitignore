@@ -17,3 +17,7 @@ env/
 .vscode/
 *.log
 .DS_Store
+
+# 生成的报告与临时脚本
+regression_report.json
+scripts/repro_tracer.py
