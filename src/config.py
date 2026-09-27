@@ -1,6 +1,9 @@
+import logging
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 import os
+
+logger = logging.getLogger(__name__)
 
 # 加载 .env 文件
 load_dotenv()
@@ -37,4 +40,4 @@ settings = Settings()
 
 # 启动检查
 if not settings.deepseek_api_key:
-    print("[警告] DEEPSEEK_API_KEY 未设置，请在 .env 文件中配置。")
+    logger.warning("DEEPSEEK_API_KEY 未设置，请在 .env 文件中配置。")

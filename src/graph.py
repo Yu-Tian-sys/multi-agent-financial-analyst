@@ -4,7 +4,7 @@ from typing import Literal
 from functools import partial
 
 from langgraph.graph import StateGraph, END, START
-from langgraph.constants import Send
+from langgraph.types import Send
 
 from src.state import FinanceState
 from src.db import Database
