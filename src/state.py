@@ -3,6 +3,21 @@ import operator
 import time
 
 
+def _take_max(a: int, b: int) -> int:
+    """取较大值，用于并行节点同时更新 current_step 时合并"""
+    return max(a, b)
+
+
+def _keep_status(a: str, b: str) -> str:
+    """状态合并：failed/rejected 优先；否则取最新值（支持串行节点的 completed 覆盖 running）"""
+    severe = {"failed", "rejected"}
+    if a in severe:
+        return a
+    if b in severe:
+        return b
+    return b  # 非严重状态取最新写入值
+
+
 class FinanceState(TypedDict):
     # 【基础字段】
     task_id: str          # 任务唯一 ID（UUID）
@@ -13,7 +28,7 @@ class FinanceState(TypedDict):
 
     # 【任务规划】
     subtasks: list        # 子任务列表，每项 {id, task, status}
-    current_step: int     # 当前步骤
+    current_step: Annotated[int, _take_max]  # 当前步骤（并行节点取 max）
     total_steps: int      # 总步骤数
 
     # 【数据收集】
@@ -50,7 +65,7 @@ class FinanceState(TypedDict):
 
     # 【消息与状态】
     messages: Annotated[list, operator.add]  # 消息历史，自动追加
-    status: str               # pending / running / completed / failed / rejected
+    status: Annotated[str, _keep_status]  # pending / running / completed / failed / rejected（并行取最严重）
     error: str                # 错误信息，无错误为空字符串
 
     # 【成本与时间】

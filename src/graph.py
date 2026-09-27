@@ -1,0 +1,207 @@
+import logging
+from typing import Literal
+
+from langgraph.graph import StateGraph, END, START
+from langgraph.constants import Send
+
+from src.state import FinanceState
+from src.agents.precheck import precheck_node
+from src.agents.planner import planner_node
+from src.agents.financial_analyst import financial_analyst_node
+from src.agents.news_analyst import news_analyst_node
+from src.agents.report_analyst import report_analyst_node
+from src.agents.validator import validator_node
+from src.agents.debate import debate_node
+from src.agents.risk import risk_node
+from src.agents.report_writer import report_writer_node
+from src.agents.compliance import compliance_node
+
+logger = logging.getLogger(__name__)
+
+
+# ========================================
+# 路由函数
+# ========================================
+
+def route_after_precheck(state: FinanceState) -> Literal["planner", "end"]:
+    """
+    precheck 后路由：通过则进入规划，不通过直接结束
+
+    Args:
+        state: 当前状态
+
+    Returns:
+        "planner" 或 "end"
+    """
+    if state.get("status") == "rejected":
+        logger.warning(f"[graph] 预检拒绝：{state.get('error')}")
+        return "end"
+    return "planner"
+
+
+def route_to_parallel(state: FinanceState) -> list:
+    """
+    planner 后并行派发到三个数据收集 Agent
+
+    用 Send 实现 fan-out。
+
+    Args:
+        state: 当前状态
+
+    Returns:
+        Send 列表
+    """
+    logger.info("[graph] 并行派发数据收集")
+    return [
+        Send("financial", state),
+        Send("news", state),
+        Send("report", state),
+    ]
+
+
+def finalize_node(state: FinanceState) -> dict:
+    """
+    收尾节点：根据合规结果决定最终状态
+
+    Args:
+        state: 当前状态
+
+    Returns:
+        要更新的字段
+    """
+    cr = state.get("compliance_result", {})
+    passed = cr.get("passed", False)
+
+    if passed:
+        logger.info("[graph] 流水线完成（合规通过）")
+        return {
+            "status": "completed",
+            "error": "",
+            "messages": [{"role": "system", "content": "流水线完成"}]
+        }
+    else:
+        issues = cr.get("issues", [])
+        logger.warning(f"[graph] 流水线完成（合规不通过）：{issues}")
+        return {
+            "status": "failed",
+            "error": f"合规审查不通过：{'; '.join(issues)}",
+            "messages": [{"role": "system", "content": f"合规不通过：{issues}"}]
+        }
+
+
+# ========================================
+# 建图
+# ========================================
+
+def build_graph() -> StateGraph:
+    """
+    构建 LangGraph 流水线
+
+    Returns:
+        编译后的图（可调用 invoke）
+
+    流程：
+    START → precheck → (条件) → planner → 并行(3个) → validator
+          → debate → risk → writer → compliance → finalize → END
+    """
+    graph = StateGraph(FinanceState)
+
+    # 1. 添加所有节点
+    graph.add_node("precheck", precheck_node)
+    graph.add_node("planner", planner_node)
+    graph.add_node("financial", financial_analyst_node)
+    graph.add_node("news", news_analyst_node)
+    graph.add_node("report", report_analyst_node)
+    graph.add_node("validator", validator_node)
+    graph.add_node("debate", debate_node)
+    graph.add_node("risk", risk_node)
+    graph.add_node("writer", report_writer_node)
+    graph.add_node("compliance", compliance_node)
+    graph.add_node("finalize", finalize_node)
+
+    # 2. 入口
+    graph.set_entry_point("precheck")
+
+    # 3. precheck 后条件路由
+    graph.add_conditional_edges(
+        "precheck",
+        route_after_precheck,
+        {
+            "planner": "planner",
+            "end": END,
+        }
+    )
+
+    # 4. planner 后并行派发（fan-out）
+    graph.add_conditional_edges(
+        "planner",
+        route_to_parallel,
+        ["financial", "news", "report"]
+    )
+
+    # 5. 三个并行节点汇聚到 validator（fan-in）
+    graph.add_edge("financial", "validator")
+    graph.add_edge("news", "validator")
+    graph.add_edge("report", "validator")
+
+    # 6. 后续串行
+    graph.add_edge("validator", "debate")
+    graph.add_edge("debate", "risk")
+    graph.add_edge("risk", "writer")
+    graph.add_edge("writer", "compliance")
+    graph.add_edge("compliance", "finalize")
+    graph.add_edge("finalize", END)
+
+    return graph.compile()
+
+
+# 全局编译好的图
+app = build_graph()
+
+
+# ========================================
+# 便捷函数
+# ========================================
+
+def run_pipeline(task_id: str, user_id: str, user_role: str, topic: str) -> dict:
+    """
+    运行完整流水线
+
+    Args:
+        task_id: 任务 ID
+        user_id: 用户 ID
+        user_role: 用户角色
+        topic: 股票代码或行业
+
+    Returns:
+        最终状态
+    """
+    from src.state import create_initial_state
+    initial = create_initial_state(task_id, user_id, user_role, topic)
+    logger.info(f"[graph] 启动流水线：{task_id} / {topic}")
+    result = app.invoke(initial)
+    logger.info(f"[graph] 流水线结束：{result.get('status')}")
+    return result
+
+
+# ========================================
+# 测试用
+# ========================================
+if __name__ == "__main__":
+    import json
+
+    result = run_pipeline("t1", "u1", "user", "AAPL")
+    print("=" * 60)
+    print("最终状态:", result.get("status"))
+    print("公司类型:", result.get("company_type"))
+    print("子任务数:", len(result.get("subtasks", [])))
+    print("新闻数:", len(result.get("news_data", [])))
+    print("研报数:", len(result.get("report_data", [])))
+    print("辩论轮次:", result.get("debate_rounds"))
+    print("风险等级:", result.get("risk_assessment", {}).get("risk_level"))
+    print("合规通过:", result.get("compliance_result", {}).get("passed"))
+    print("报告长度:", len(result.get("final_report", "")) or len(result.get("draft_report", "")))
+    print("总 tokens:", result.get("total_tokens"))
+    print("总成本:", result.get("total_cost"))
+    print("错误:", result.get("error"))
+    print("=" * 60)
