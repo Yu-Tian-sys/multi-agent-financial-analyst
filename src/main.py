@@ -189,24 +189,31 @@ def metrics():
 @app.get("/cost")
 def cost():
     """
-    成本统计
+    成本统计（从 tasks 表汇总今日所有任务）
+
+    注意：返回字段同时保留 llm_calls（旧字段，等于 tasks 数）以兼容旧调用方。
 
     Returns:
-        今日总 token 和总成本
+        今日总 token、总成本、任务数、平均每任务成本
     """
     cursor = db.conn.execute("""
         SELECT
-            SUM(tokens) as total_tokens,
-            SUM(cost) as total_cost,
-            COUNT(*) as calls
-        FROM cost_log
+            SUM(total_tokens) as total_tokens,
+            SUM(total_cost) as total_cost,
+            COUNT(*) as tasks
+        FROM tasks
         WHERE created_at > datetime('now', '-1 day')
     """)
     row = cursor.fetchone()
+    total_tasks = row["tasks"] or 0
+    total_cost = row["total_cost"] or 0
     return {
         "total_tokens": row["total_tokens"] or 0,
-        "total_cost": round(row["total_cost"] or 0, 6),
-        "llm_calls": row["calls"] or 0,
+        "total_cost": round(total_cost, 6),
+        "tasks": total_tasks,
+        "avg_cost_per_task": round(total_cost / total_tasks, 6) if total_tasks > 0 else 0,
+        # 兼容旧字段（语义变为"有成本记录的任务数"）
+        "llm_calls": total_tasks,
     }
 
 

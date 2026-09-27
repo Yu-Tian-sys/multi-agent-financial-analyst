@@ -87,4 +87,6 @@ def test_cost(client):
     data = resp.json()
     assert "total_tokens" in data
     assert "total_cost" in data
-    assert "llm_calls" in data
+    assert "tasks" in data
+    assert "avg_cost_per_task" in data
+    assert "llm_calls" in data  # 兼容旧字段
