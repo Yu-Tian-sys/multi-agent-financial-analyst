@@ -5,7 +5,7 @@
 ## 开发环境
 
 ```bash
-git clone https://github.com/你的用户名/multi-agent-financial-analyst.git
+git clone https://github.com/ty181/multi-agent-financial-analyst.git
 cd multi-agent-financial-analyst
 pip install -r requirements.txt
 cp .env.example .env

@@ -27,7 +27,7 @@
 
 ```bash
 # 1. 克隆
-git clone `https://github.com/你的用户名/multi-agent-financial-analyst.git`
+git clone `https://github.com/ty181/multi-agent-financial-analyst.git`
 cd multi-agent-financial-analyst
 
 # 2. 安装依赖
