@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 # 最大辩论轮次
-MAX_DEBATE_ROUNDS = 3
+MAX_DEBATE_ROUNDS = 2
 
 
 # ========================================

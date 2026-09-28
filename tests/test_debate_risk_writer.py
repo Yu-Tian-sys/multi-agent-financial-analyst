@@ -35,9 +35,9 @@ def test_debate_node_mock(monkeypatch):
     result = debate_node(state)
 
     assert result["status"] == "running"
-    assert result["debate_rounds"] == 3
+    assert result["debate_rounds"] == 2
     # 3 轮 × 2 条 + 1 裁决 = 7 条
-    assert len(result["debate_records"]) == 7
+    assert len(result["debate_records"]) == 5
     assert result["debate_records"][0]["side"] == "bull"
     assert result["debate_records"][1]["side"] == "bear"
     assert result["debate_records"][-1]["side"] == "judge"
