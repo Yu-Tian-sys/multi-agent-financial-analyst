@@ -75,7 +75,7 @@ def _run_pipeline_task(task_id: str, user_id: str, user_role: str, topic: str) -
         db.update_task(task_id, status="running")
         result = run_pipeline(task_id, user_id, user_role, topic)
 
-        # 把最终结果写回数据库
+        # 把最终结果写回数据库（含进度字段，供前端进度条显示）
         db.update_task(
             task_id,
             status=result.get("status", "failed"),
@@ -86,6 +86,8 @@ def _run_pipeline_task(task_id: str, user_id: str, user_role: str, topic: str) -
             total_tokens=result.get("total_tokens", 0),
             total_cost=result.get("total_cost", 0.0),
             error=result.get("error", ""),
+            current_step=result.get("current_step", 0),
+            total_steps=result.get("total_steps", 0),
         )
         logger.info(f"[main] 任务完成：{task_id}，status={result.get('status')}")
 
