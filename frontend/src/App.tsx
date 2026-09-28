@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { HealthCheck } from './components/HealthCheck'
 
 // 任务状态枚举
@@ -212,6 +214,31 @@ function App() {
 
   return (
     <div style={{ maxWidth: 720, margin: '40px auto', padding: 24, fontFamily: 'system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif', color: '#111827' }}>
+      {/* 全局样式：Markdown 报告渲染样式（限定在 .markdown-body 内） */}
+      <style>{`
+        .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
+          font-weight: 600;
+          margin: 16px 0 8px;
+          line-height: 1.4;
+        }
+        .markdown-body h1 { font-size: 20px; }
+        .markdown-body h2 { font-size: 17px; }
+        .markdown-body h3 { font-size: 15px; }
+        .markdown-body h4 { font-size: 14px; }
+        .markdown-body p { margin: 8px 0; }
+        .markdown-body ul, .markdown-body ol { margin: 8px 0; padding-left: 24px; }
+        .markdown-body li { margin: 4px 0; }
+        .markdown-body table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+        .markdown-body th, .markdown-body td { border: 1px solid #d1d5db; padding: 6px 10px; text-align: left; font-size: 13px; }
+        .markdown-body th { background: #f3f4f6; font-weight: 600; }
+        .markdown-body code { background: #f3f4f6; padding: 2px 4px; border-radius: 3px; font-size: 13px; font-family: ui-monospace, "Cascadia Code", "Microsoft YaHei", monospace; }
+        .markdown-body pre { background: #f3f4f6; padding: 12px; border-radius: 6px; overflow: auto; margin: 8px 0; }
+        .markdown-body pre code { background: transparent; padding: 0; font-size: 13px; }
+        .markdown-body blockquote { border-left: 3px solid #d1d5db; padding-left: 12px; color: #6b7280; margin: 8px 0; }
+        .markdown-body a { color: #2563eb; text-decoration: underline; }
+        .markdown-body hr { border: none; border-top: 1px solid #e5e7eb; margin: 16px 0; }
+        .markdown-body img { max-width: 100%; }
+      `}</style>
       {/* 第 1 块：标题 */}
       <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
         多 Agent 金融分析 Dashboard
@@ -261,7 +288,7 @@ function App() {
         {/* 提交后的 task_id */}
         {taskId && (
           <div style={{ marginTop: 12, fontSize: 13, color: '#6b7280' }}>
-            task_id: <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>{taskId}</code>
+            task_id: <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4, color: '#111827' }}>{taskId}</code>
           </div>
         )}
         {/* 错误信息（红色） */}
@@ -337,6 +364,30 @@ function App() {
           >
             重新开始
           </button>
+        </div>
+      )}
+
+      {/* 第 3.5 块：分析报告（仅 completed 时显示） */}
+      {task?.status === 'completed' && task.final_report && (
+        <div style={{ padding: 16, background: 'white', borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
+            分析报告
+          </div>
+          <div className="markdown-body" style={{
+            background: 'white',
+            borderRadius: 8,
+            border: '1px solid #e5e7eb',
+            padding: 20,
+            maxHeight: 600,
+            overflow: 'auto',
+            fontSize: 14,
+            lineHeight: 1.7,
+            color: '#111827',
+          }}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {task.final_report}
+            </ReactMarkdown>
+          </div>
         </div>
       )}
 
