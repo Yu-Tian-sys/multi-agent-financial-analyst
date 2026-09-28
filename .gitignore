@@ -21,3 +21,7 @@ env/
 # 生成的报告与临时脚本
 regression_report.json
 scripts/repro_tracer.py
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
