@@ -25,23 +25,68 @@
 
 ## 快速开始
 
+**环境要求**：
+- Python 3.11 或更高
+- Node.js 20 或更高（前端需要）
+
+**1. 克隆仓库**
+
 ```bash
-# 1. 克隆
-git clone `https://github.com/Yu-Tian-sys/multi-agent-financial-analyst.git`
+git clone https://github.com/Yu-Tian-sys/multi-agent-financial-analyst.git
 cd multi-agent-financial-analyst
+```
 
-# 2. 安装依赖
+**2. 创建虚拟环境并安装后端依赖**
+
+Windows（PowerShell）：
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+```
 
-# 3. 配置
+macOS / Linux：
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**3. 配置环境变量**
+
+```bash
 cp .env.example .env
-# 编辑 .env，填入 DEEPSEEK_API_KEY
+```
 
-# 4. 启动服务
+然后编辑 .env，至少填入你的 DeepSeek API Key：
+
+```text
+DEEPSEEK_API_KEY=你的key
+```
+
+（API Key 在 `https://platform.deepseek.com/` 申请）
+
+**4. 启动后端**
+
+```bash
 python -m uvicorn src.main:app --host 127.0.0.1 --port 8000
 ```
 
-打开 http://127.0.0.1:8000/docs 查看 API 文档。
+打开 http://127.0.0.1:8000/docs 可查看 API 文档。
+
+**5. 启动前端 Dashboard（可选）**
+
+前端提供可视化界面，需要另开一个终端：
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+浏览器打开终端显示的地址（通常是 http://localhost:5173/）。
 
 ## API 使用
 

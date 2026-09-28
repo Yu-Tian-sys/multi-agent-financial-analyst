@@ -12,6 +12,7 @@ data/*
 .coverage
 htmlcov/
 venv/
+.venv/
 env/
 .idea/
 .vscode/
