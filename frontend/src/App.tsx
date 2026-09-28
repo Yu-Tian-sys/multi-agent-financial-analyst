@@ -16,7 +16,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { EventTimeline, type TraceEvent } from './components/EventTimeline'
-import { StatusDot } from './components/StatusDot'
+import { HistorySidebar } from './components/HistorySidebar'
 import { ErrorBanner, WarningBanner } from './components/ui'
 
 // 任务状态枚举
@@ -75,6 +75,8 @@ function App() {
   // 折叠状态（纯视觉）
   const [reportOpen, setReportOpen] = useState<boolean>(false)
   const [timelineOpen, setTimelineOpen] = useState<boolean>(false)
+  // 历史列表刷新触发器（变化时 HistorySidebar 重新拉 /api/tasks）
+  const [historyRefreshKey, setHistoryRefreshKey] = useState<number>(0)
 
   const pollTimerRef = useRef<number | null>(null)
   const pollStartRef = useRef<number>(0)
@@ -171,6 +173,7 @@ function App() {
       }
       const data = await resp.json() as AnalyzeResponse
       setTaskId(data.task_id)
+      setHistoryRefreshKey((k) => k + 1)
       startPolling(data.task_id)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -219,6 +222,45 @@ function App() {
     traceFetchedRef.current = null
   }
 
+  // 新对话：直接复用 reset
+  function handleNewChat(): void {
+    reset()
+  }
+
+  // 加载历史任务：直接展示结果，不走提交、不启动轮询
+  async function loadHistory(tid: string): Promise<void> {
+    stopPolling()
+    setError('')
+    setPollTimedOut(false)
+    setTraceError('')
+    setTraceEvents([])
+    setReportOpen(false)
+    setTimelineOpen(false)
+    try {
+      const resp = await fetch(`/api/task/${encodeURIComponent(tid)}`)
+      if (!resp.ok) {
+        setError('加载历史失败')
+        return
+      }
+      const data = await resp.json() as Partial<TaskInfo>
+      const merged: TaskInfo = {
+        task_id: data.task_id ?? tid,
+        status: (data.status as TaskStatus) ?? 'pending',
+        current_step: data.current_step ?? 0,
+        total_steps: data.total_steps ?? 0,
+        topic: data.topic ?? '',
+        final_report: data.final_report ?? '',
+        error: data.error ?? '',
+        total_cost: data.total_cost ?? 0,
+        total_tokens: data.total_tokens ?? 0,
+      }
+      setTask(merged)
+      setTaskId(tid)
+    } catch {
+      setError('加载历史失败')
+    }
+  }
+
   async function fetchTrace(tid: string): Promise<void> {
     try {
       const resp = await fetch(`/api/trace/${encodeURIComponent(tid)}`)
@@ -245,6 +287,13 @@ function App() {
     return () => stopPolling()
   }, [])
 
+  // 任务进入终态时刷新左侧历史列表（新提交的完成/失败后列表更新）
+  useEffect(() => {
+    if (task?.status && TERMINAL_STATUSES.includes(task.status)) {
+      setHistoryRefreshKey((k) => k + 1)
+    }
+  }, [task?.status])
+
   // 新消息时滚动到底部
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -260,7 +309,14 @@ function App() {
   const isProcessing = task?.status === 'pending' || task?.status === 'running'
 
   return (
-    <>
+    <div style={{ display: 'flex', height: '100vh', background: '#0d1117' }}>
+      <HistorySidebar
+        currentTaskId={taskId}
+        onSelect={loadHistory}
+        onNew={handleNewChat}
+        refreshTrigger={historyRefreshKey}
+      />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
       {/* Markdown 渲染样式 */}
       <style>{`
         .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
@@ -288,53 +344,6 @@ function App() {
         .markdown-body img { max-width: 100%; }
         .markdown-body strong { color: #e6edf3; font-weight: 600; }
       `}</style>
-
-      {/* ========== Header ========== */}
-      <header
-        style={{
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 24px',
-          borderBottom: '1px solid #21262d',
-          background: '#0d1117',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: '#161b22',
-              border: '1px solid #30363d',
-              borderRadius: 8,
-            }}
-          >
-            <Activity size={18} color="#58a6ff" strokeWidth={2} />
-          </div>
-          <div>
-            <h1
-              style={{
-                fontSize: 16,
-                fontWeight: 600,
-                margin: 0,
-                color: '#e6edf3',
-                lineHeight: 1.2,
-              }}
-            >
-              金融分析助手
-            </h1>
-            <p style={{ color: '#6e7681', fontSize: 12, margin: '2px 0 0' }}>
-              多 Agent 协作
-            </p>
-          </div>
-        </div>
-        <StatusDot />
-      </header>
 
       {/* ========== 对话流 ========== */}
       <main
@@ -668,7 +677,8 @@ function App() {
           </button>
         </div>
       </footer>
-    </>
+      </div>
+    </div>
   )
 }
 

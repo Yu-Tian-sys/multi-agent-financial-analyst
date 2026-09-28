@@ -260,3 +260,44 @@ body {
 .dot-pulse {
   animation: dot-pulse 1.5s ease-in-out infinite;
 }
+
+/* ============================================================
+   历史侧栏样式
+   ============================================================ */
+.history-new-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 12px;
+  padding: 8px;
+  font-size: 13px;
+  color: #e6edf3;
+  background: transparent;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.history-new-btn:hover {
+  background: #161b22;
+}
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 2px;
+  transition: background 0.15s ease;
+}
+.history-item:hover {
+  background: #161b22;
+}
+.history-item.active {
+  background: #1f2937;
+}
+.history-item.active:hover {
+  background: #1f2937;
+}
