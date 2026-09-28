@@ -178,6 +178,23 @@ class Database:
                     pass
         return task
 
+    def list_tasks(self, limit: int = 50, offset: int = 0) -> list:
+        """按创建时间倒序返回任务列表（只返回列表需要的字段）。
+
+        Args:
+            limit: 返回条数上限
+            offset: 跳过条数（用于分页）
+
+        Returns:
+            任务摘要列表，每条含 task_id / topic / status / created_at / updated_at / total_cost
+        """
+        cursor = self.conn.execute(
+            "SELECT task_id, topic, status, created_at, updated_at, total_cost "
+            "FROM tasks ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
     def update_task(self, task_id: str, **kwargs) -> None:
         """更新任务任意字段，list/dict 自动 json.dumps，自动更新 updated_at"""
         if not kwargs:

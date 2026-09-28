@@ -202,6 +202,20 @@ def get_task(task_id: str):
     return task
 
 
+@app.get("/tasks")
+def list_tasks(limit: int = 50, offset: int = 0):
+    """返回最近的任务列表（用于历史记录）。"""
+    # 上限保护，避免一次拉太多
+    if limit > 200:
+        limit = 200
+    if limit < 0:
+        limit = 0
+    if offset < 0:
+        offset = 0
+    tasks = db.list_tasks(limit=limit, offset=offset)
+    return {"tasks": tasks, "count": len(tasks)}
+
+
 @app.get("/health")
 def health():
     """健康检查"""
