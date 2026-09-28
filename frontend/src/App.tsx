@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { HealthCheck } from './components/HealthCheck'
 import { MermaidChart } from './components/MermaidChart'
+import { EventTimeline, type TraceEvent } from './components/EventTimeline'
 
 // 任务状态枚举
 type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'rejected'
@@ -57,6 +58,8 @@ function App() {
   const [mermaidText, setMermaidText] = useState<string>('')
   // 拉取 trace 失败的错误信息
   const [traceError, setTraceError] = useState<string>('')
+  // trace 事件列表（来自 /trace 接口，用于时间线渲染）
+  const [traceEvents, setTraceEvents] = useState<TraceEvent[]>([])
 
   // 轮询定时器引用
   const pollTimerRef = useRef<number | null>(null)
@@ -192,6 +195,7 @@ function App() {
     setPollTimedOut(false)
     setMermaidText('')
     setTraceError('')
+    setTraceEvents([])
     traceFetchedRef.current = null
   }
 
@@ -207,8 +211,9 @@ function App() {
         setTraceError(typeof errBody.detail === 'string' ? errBody.detail : `HTTP ${resp.status}`)
         return
       }
-      const data = await resp.json() as { mermaid?: string; events?: unknown[]; summary?: unknown }
+      const data = await resp.json() as { mermaid?: string; events?: TraceEvent[]; summary?: unknown }
       setMermaidText(data.mermaid ?? '')
+      setTraceEvents(data.events ?? [])
     } catch (e) {
       setTraceError(e instanceof Error ? e.message : String(e))
     }
@@ -440,6 +445,21 @@ function App() {
             </div>
           )}
           <MermaidChart chart={mermaidText} />
+        </div>
+      )}
+
+      {/* 第 3.8 块：事件时间线（仅 completed 时显示） */}
+      {task?.status === 'completed' && (
+        <div style={{ padding: 16, background: 'white', borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
+            事件时间线
+          </div>
+          {traceError && (
+            <div style={{ padding: 8, background: '#fef2f2', color: '#dc2626', borderRadius: 6, fontSize: 13, marginBottom: 12, whiteSpace: 'pre-wrap' }}>
+              {traceError}
+            </div>
+          )}
+          <EventTimeline events={traceEvents} />
         </div>
       )}
 
