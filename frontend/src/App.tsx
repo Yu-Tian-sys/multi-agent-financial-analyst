@@ -12,6 +12,8 @@ import {
   RotateCcw,
   ArrowUp,
   AlertCircle,
+  Download,
+  RefreshCw,
 } from 'lucide-react'
 import { EventTimeline, type TraceEvent } from './components/EventTimeline'
 import { StatusDot } from './components/StatusDot'
@@ -136,9 +138,9 @@ function App() {
     void pollOnce(tid)
   }
 
-  async function submitAnalyze(): Promise<void> {
-    const trimmed = topic.trim()
-    if (!trimmed) return
+  // 提交分析（接受指定 topic，供「重新分析」复用）
+  async function submitWithTopic(topicStr: string): Promise<void> {
+    if (!topicStr) return
 
     setSubmitting(true)
     setError('')
@@ -147,6 +149,8 @@ function App() {
     setPollTimedOut(false)
     setReportOpen(false)
     setTimelineOpen(false)
+    setTraceError('')
+    setTraceEvents([])
     stopPolling()
 
     try {
@@ -154,7 +158,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          topic: trimmed,
+          topic: topicStr,
           user_id: 'web-user',
           user_role: 'user',
         }),
@@ -174,6 +178,31 @@ function App() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  async function submitAnalyze(): Promise<void> {
+    await submitWithTopic(topic.trim())
+  }
+
+  // 重新分析：用当前 task 的 topic 再跑一次
+  function reanalyze(): void {
+    const t = task?.topic || topic.trim()
+    if (!t) return
+    void submitWithTopic(t)
+  }
+
+  // 下载报告：把 final_report 导出为 .md 文件
+  function downloadReport(): void {
+    if (!task?.final_report) return
+    const blob = new Blob([task.final_report], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${task.topic || 'report'}-report.md`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   function reset(): void {
@@ -437,6 +466,18 @@ function App() {
                     </div>
                   </div>
 
+                  {/* 重新分析：用相同 topic 再跑一次（与底部「重新开始」语义不同） */}
+                  <div style={{ marginTop: 8 }}>
+                    <button
+                      onClick={reanalyze}
+                      disabled={submitting}
+                      className="btn-ghost"
+                      style={{ fontSize: 13, padding: '6px 12px' }}
+                    >
+                      <RefreshCw size={13} /> 重新分析
+                    </button>
+                  </div>
+
                   {/* 折叠：分析报告 */}
                   {task.final_report && (
                     <div>
@@ -446,8 +487,21 @@ function App() {
                       >
                         <FileText size={14} />
                         <span>分析报告</span>
-                        <span style={{ marginLeft: 'auto', color: '#6e7681' }}>
-                          {reportOpen ? '收起' : '展开'}
+                        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {/* 下载报告按钮 */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              downloadReport()
+                            }}
+                            className="btn-ghost"
+                            style={{ fontSize: 12, padding: '2px 8px' }}
+                          >
+                            <Download size={13} /> 下载 .md
+                          </button>
+                          <span style={{ color: '#6e7681' }}>
+                            {reportOpen ? '收起' : '展开'}
+                          </span>
                         </span>
                       </div>
                       {reportOpen && (
