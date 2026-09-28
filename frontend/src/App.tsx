@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { HealthCheck } from './components/HealthCheck'
+import { MermaidChart } from './components/MermaidChart'
 
 // 任务状态枚举
 type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'rejected'
@@ -52,11 +53,17 @@ function App() {
   const [error, setError] = useState<string>('')
   // 轮询超时标记
   const [pollTimedOut, setPollTimedOut] = useState<boolean>(false)
+  // Mermaid 流程图文本（来自 /trace 接口）
+  const [mermaidText, setMermaidText] = useState<string>('')
+  // 拉取 trace 失败的错误信息
+  const [traceError, setTraceError] = useState<string>('')
 
   // 轮询定时器引用
   const pollTimerRef = useRef<number | null>(null)
   // 轮询开始时间戳
   const pollStartRef = useRef<number>(0)
+  // 已拉取过 trace 的 task_id（避免重复拉取）
+  const traceFetchedRef = useRef<string | null>(null)
 
   /**
    * 停止轮询（清理定时器）
@@ -183,7 +190,37 @@ function App() {
     setTask(null)
     setError('')
     setPollTimedOut(false)
+    setMermaidText('')
+    setTraceError('')
+    traceFetchedRef.current = null
   }
+
+  /**
+   * 拉取任务追踪（仅 completed 时调一次）
+   * 读 /api/trace/{task_id} 的 mermaid 字段
+   */
+  async function fetchTrace(tid: string): Promise<void> {
+    try {
+      const resp = await fetch(`/api/trace/${encodeURIComponent(tid)}`)
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({ detail: `HTTP ${resp.status} ${resp.statusText}` })) as { detail?: string }
+        setTraceError(typeof errBody.detail === 'string' ? errBody.detail : `HTTP ${resp.status}`)
+        return
+      }
+      const data = await resp.json() as { mermaid?: string; events?: unknown[]; summary?: unknown }
+      setMermaidText(data.mermaid ?? '')
+    } catch (e) {
+      setTraceError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  // 任务完成时自动拉取一次 trace（只调一次，用 ref 去重）
+  useEffect(() => {
+    if (task?.status === 'completed' && task.task_id && traceFetchedRef.current !== task.task_id) {
+      traceFetchedRef.current = task.task_id
+      void fetchTrace(task.task_id)
+    }
+  }, [task?.status, task?.task_id])
 
   // 卸载时清理定时器
   useEffect(() => {
@@ -388,6 +425,21 @@ function App() {
               {task.final_report}
             </ReactMarkdown>
           </div>
+        </div>
+      )}
+
+      {/* 第 3.7 块：Agent 协作流程（仅 completed 时显示） */}
+      {task?.status === 'completed' && (
+        <div style={{ padding: 16, background: 'white', borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
+            Agent 协作流程
+          </div>
+          {traceError && (
+            <div style={{ padding: 8, background: '#fef2f2', color: '#dc2626', borderRadius: 6, fontSize: 13, marginBottom: 12, whiteSpace: 'pre-wrap' }}>
+              {traceError}
+            </div>
+          )}
+          <MermaidChart chart={mermaidText} />
         </div>
       )}
 
