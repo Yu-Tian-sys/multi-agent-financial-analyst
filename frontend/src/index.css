@@ -61,3 +61,8 @@ code, pre, .mono, [data-mono] {
   background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.4), transparent);
   pointer-events: none;
 }
+
+/* 全局间距 */
+body {
+  line-height: 1.6;
+}

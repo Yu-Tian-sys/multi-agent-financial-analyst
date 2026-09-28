@@ -5,6 +5,7 @@ import { HealthCheck } from './components/HealthCheck'
 import { MermaidChart } from './components/MermaidChart'
 import { EventTimeline, type TraceEvent } from './components/EventTimeline'
 import { GlobalMetrics } from './components/GlobalMetrics'
+import { StatusDot } from './components/StatusDot'
 
 // 任务状态枚举
 type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'rejected'
@@ -256,7 +257,7 @@ function App() {
   const submitDisabled = submitting || !topic.trim()
 
   return (
-    <div style={{ maxWidth: 960, margin: '40px auto', padding: 24, fontFamily: 'system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif', color: '#e5e7eb' }}>
+    <div style={{ maxWidth: 960, margin: '40px auto', padding: 32, fontFamily: 'system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif', color: '#e5e7eb' }}>
       {/* 全局样式：Markdown 报告渲染样式（限定在 .markdown-body 内） */}
       <style>{`
         .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
@@ -282,54 +283,61 @@ function App() {
         .markdown-body hr { border: none; border-top: 1px solid #374151; margin: 16px 0; }
         .markdown-body img { max-width: 100%; }
       `}</style>
-      {/* 第 1 块：标题 */}
-      <h1 style={{ fontSize: 28, fontWeight: 600, marginBottom: 4 }}>
-        多 Agent 金融分析 Dashboard
-      </h1>
-      <p style={{ color: '#9ca3af', marginBottom: 24, fontSize: 15 }}>
-        后端地址：http://127.0.0.1:8000
-      </p>
+      {/* 第 1 块：标题 + 状态指示点 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 600, marginBottom: 4 }}>
+            多 Agent 金融分析 Dashboard
+          </h1>
+          <p style={{ color: '#9ca3af', fontSize: 15 }}>
+            后端地址：http://127.0.0.1:8000
+          </p>
+        </div>
+        <StatusDot />
+      </div>
 
       {/* 第 2 块：提交表单 */}
       <div className="card">
         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
           股票代码或行业名称
         </label>
-        <input
-          type="text"
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          placeholder="例如 AAPL 或 招商银行"
-          disabled={submitting}
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            fontSize: 14,
-            border: '1px solid #374151',
-            borderRadius: 6,
-            boxSizing: 'border-box',
-            outline: 'none',
-            background: '#0f1419',
-            color: '#e5e7eb',
-          }}
-        />
-        <button
-          onClick={submitAnalyze}
-          disabled={submitDisabled}
-          style={{
-            marginTop: 12,
-            padding: '8px 16px',
-            fontSize: 14,
-            backgroundColor: '#2dd4bf',
-            color: '#0a0e14',
-            border: 'none',
-            borderRadius: 6,
-            cursor: submitDisabled ? 'not-allowed' : 'pointer',
-            opacity: submitDisabled ? 0.6 : 1,
-          }}
-        >
-          {submitting ? '提交中...' : '提交分析'}
-        </button>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
+          <input
+            type="text"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="例如 AAPL 或 招商银行"
+            disabled={submitting}
+            style={{
+              flex: 1,
+              padding: '8px 16px',
+              fontSize: 14,
+              border: '1px solid #374151',
+              borderRadius: 6,
+              boxSizing: 'border-box',
+              outline: 'none',
+              background: '#0f1419',
+              color: '#e5e7eb',
+            }}
+          />
+          <button
+            onClick={submitAnalyze}
+            disabled={submitDisabled}
+            style={{
+              flexShrink: 0,
+              padding: '8px 16px',
+              fontSize: 14,
+              backgroundColor: '#2dd4bf',
+              color: '#0a0e14',
+              border: 'none',
+              borderRadius: 6,
+              cursor: submitDisabled ? 'not-allowed' : 'pointer',
+              opacity: submitDisabled ? 0.6 : 1,
+            }}
+          >
+            {submitting ? '提交中...' : '提交分析'}
+          </button>
+        </div>
         {/* 提交后的 task_id */}
         {taskId && (
           <div style={{ marginTop: 12, fontSize: 13, color: '#9ca3af' }}>
