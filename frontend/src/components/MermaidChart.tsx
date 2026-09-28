@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Loader2, GitBranch } from 'lucide-react'
 import mermaid from 'mermaid'
 
 interface MermaidChartProps {
@@ -71,16 +69,13 @@ export function MermaidChart({ chart }: MermaidChartProps) {
       {error && (
         <div
           style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 8,
-            color: '#fca5a5',
-            fontSize: 13,
+            marginTop: 12,
             padding: '10px 12px',
-            background: 'rgba(239, 68, 68, 0.08)',
-            border: '1px solid rgba(239, 68, 68, 0.25)',
-            borderRadius: 8,
-            marginBottom: 12,
+            color: '#fca5a5',
+            fontSize: 14,
+            background: 'rgba(239, 68, 68, 0.06)',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            borderRadius: 4,
             whiteSpace: 'pre-wrap',
           }}
         >
@@ -90,13 +85,10 @@ export function MermaidChart({ chart }: MermaidChartProps) {
 
       <div
         style={{
-          background: '#0f1419',
-          border: '1px solid #1f2937',
-          borderRadius: 8,
           overflow: 'auto',
           minHeight: 240,
           maxHeight: 600,
-          padding: 12,
+          padding: '8px 0',
           textAlign: 'center',
           display: 'flex',
           alignItems: 'center',
@@ -104,33 +96,13 @@ export function MermaidChart({ chart }: MermaidChartProps) {
         }}
       >
         {svg ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
+          <div dangerouslySetInnerHTML={{ __html: svg }} />
         ) : !error ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: '#6b7280', fontSize: 13 }}>
-            {chart ? (
-              <>
-                <Loader2 size={20} className="spin" style={{ color: '#2dd4bf' }} />
-                <span>渲染中...</span>
-              </>
-            ) : (
-              <>
-                <GitBranch size={20} style={{ color: '#374151' }} />
-                <span>暂无流程图</span>
-              </>
-            )}
-          </div>
+          <span style={{ color: '#5a6270', fontSize: 14 }}>
+            {chart ? '渲染中...' : '暂无流程图'}
+          </span>
         ) : null}
       </div>
-
-      <style>{`
-        .spin { animation: spin 0.9s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   )
 }

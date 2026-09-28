@@ -2,12 +2,12 @@ import type { CSSProperties, ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
 /* ============================================================
-   共享 UI 原语
-   - 不含业务逻辑，纯视觉
-   - 用 CSS 变量与 .card/.panel/.input 等类
+   共享 UI 原语：分析报告风
+   - 杂志风小标题
+   - 数字直接铺，无背景无边框
    ============================================================ */
 
-/** 卡片标题区：左侧图标 + 标题，右侧可选操作 */
+/** 区块标题：杂志风（小号、大字距、弱灰、图标同色） */
 export function SectionTitle({
   icon: Icon,
   title,
@@ -20,12 +20,20 @@ export function SectionTitle({
   actions?: ReactNode
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Icon size={16} style={{ color: '#2dd4bf' }} strokeWidth={2} />
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#e5e7eb' }}>{title}</span>
+        <Icon size={14} style={{ color: '#5a6270' }} strokeWidth={2} />
+        <span style={{
+          fontSize: 12,
+          fontWeight: 600,
+          color: '#5a6270',
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+        }}>
+          {title}
+        </span>
         {hint && (
-          <span style={{ fontSize: 12, color: '#6b7280' }}>· {hint}</span>
+          <span style={{ fontSize: 12, color: '#5a6270', letterSpacing: '0.05em' }}>· {hint}</span>
         )}
       </div>
       {actions}
@@ -33,7 +41,7 @@ export function SectionTitle({
   )
 }
 
-/** 大数字卡片（label + value） */
+/** 大数字：无背景无边框，直接铺在页面上 */
 export function Stat({
   label,
   value,
@@ -41,26 +49,24 @@ export function Stat({
 }: {
   label: string
   value: string | number
-  /** 是否高亮成青色（关键指标） */
   accent?: boolean
 }) {
   return (
-    <div
-      style={{
-        padding: 14,
-        background: '#0f1419',
-        border: '1px solid #1f2937',
-        borderRadius: 8,
-        transition: 'border-color 0.2s ease',
-      }}
-    >
-      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
+    <div>
+      <div style={{
+        fontSize: 12,
+        color: '#5a6270',
+        marginBottom: 8,
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        fontWeight: 600,
+      }}>
         {label}
       </div>
       <div
-        className={`stat-value ${accent ? 'stat-glow' : ''}`}
+        className="stat-value"
         style={{
-          fontSize: 22,
+          fontSize: 32,
           fontWeight: 600,
           color: accent ? '#2dd4bf' : '#e5e7eb',
         }}
@@ -71,12 +77,11 @@ export function Stat({
   )
 }
 
-/** 进度条：精致圆角 + 渐变 + 光泽 */
+/** 进度条：纯青色，保留 width transition */
 export function ProgressBar({
   value,
   height = 8,
 }: {
-  /** 0-100 */
   value: number
   height?: number
 }) {
@@ -85,8 +90,8 @@ export function ProgressBar({
       style={{
         width: '100%',
         height,
-        background: '#0f1419',
-        border: '1px solid #1f2937',
+        background: '#0a0e14',
+        border: '1px solid #141a22',
         borderRadius: 999,
         overflow: 'hidden',
       }}
@@ -95,33 +100,30 @@ export function ProgressBar({
         style={{
           width: `${Math.min(100, Math.max(0, value))}%`,
           height: '100%',
-          background: 'linear-gradient(90deg, #2dd4bf 0%, #22d3ee 100%)',
+          background: '#2dd4bf',
           borderRadius: 999,
           transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: '0 0 8px rgba(45, 212, 191, 0.4)',
         }}
       />
     </div>
   )
 }
 
-/** 状态徽章 */
+/** 状态徽章（极简） */
 export function Badge({
   children,
   tone = 'neutral',
   icon: Icon,
 }: {
   children: ReactNode
-  tone?: 'neutral' | 'accent' | 'success' | 'error' | 'warning' | 'info'
+  tone?: 'neutral' | 'accent' | 'success' | 'error'
   icon?: LucideIcon
 }) {
   const styles: Record<string, { bg: string; color: string; border: string }> = {
-    neutral: { bg: 'rgba(156, 163, 175, 0.1)', color: '#9ca3af', border: 'rgba(156, 163, 175, 0.25)' },
-    accent: { bg: 'rgba(45, 212, 191, 0.12)', color: '#2dd4bf', border: 'rgba(45, 212, 191, 0.3)' },
-    success: { bg: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', border: 'rgba(34, 197, 94, 0.3)' },
-    error: { bg: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: 'rgba(239, 68, 68, 0.3)' },
-    warning: { bg: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.3)' },
-    info: { bg: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', border: 'rgba(59, 130, 246, 0.3)' },
+    neutral: { bg: 'rgba(139, 146, 158, 0.08)', color: '#8b929e', border: 'rgba(139, 146, 158, 0.2)' },
+    accent: { bg: 'rgba(45, 212, 191, 0.1)', color: '#2dd4bf', border: 'rgba(45, 212, 191, 0.25)' },
+    success: { bg: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', border: 'rgba(34, 197, 94, 0.25)' },
+    error: { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'rgba(239, 68, 68, 0.25)' },
   }
   const s = styles[tone]
   return (
@@ -131,7 +133,7 @@ export function Badge({
         alignItems: 'center',
         gap: 4,
         padding: '2px 8px',
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: 500,
         background: s.bg,
         color: s.color,
@@ -140,26 +142,23 @@ export function Badge({
         whiteSpace: 'nowrap',
       }}
     >
-      {Icon && <Icon size={11} strokeWidth={2.2} />}
+      {Icon && <Icon size={12} strokeWidth={2} />}
       {children}
     </span>
   )
 }
 
-/** 错误横幅（柔和红色） */
+/** 错误横幅 */
 export function ErrorBanner({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 8,
-        marginTop: 12,
+        marginTop: 16,
         padding: '10px 12px',
-        background: 'rgba(239, 68, 68, 0.08)',
-        border: '1px solid rgba(239, 68, 68, 0.25)',
-        borderRadius: 8,
-        fontSize: 13,
+        background: 'rgba(239, 68, 68, 0.06)',
+        border: '1px solid rgba(239, 68, 68, 0.2)',
+        borderRadius: 4,
+        fontSize: 14,
         color: '#fca5a5',
         whiteSpace: 'pre-wrap' as CSSProperties['whiteSpace'],
       }}
@@ -169,18 +168,18 @@ export function ErrorBanner({ children }: { children: ReactNode }) {
   )
 }
 
-/** 警告横幅（柔和橙色，用于超时/拒绝等） */
+/** 警告横幅（灰底中性） */
 export function WarningBanner({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
-        marginTop: 12,
+        marginTop: 16,
         padding: '10px 12px',
-        background: 'rgba(245, 158, 11, 0.08)',
-        border: '1px solid rgba(245, 158, 11, 0.25)',
-        borderRadius: 8,
-        fontSize: 13,
-        color: '#fbbf24',
+        background: 'rgba(139, 146, 158, 0.06)',
+        border: '1px solid rgba(139, 146, 158, 0.2)',
+        borderRadius: 4,
+        fontSize: 14,
+        color: '#8b929e',
         whiteSpace: 'pre-wrap' as CSSProperties['whiteSpace'],
       }}
     >
@@ -192,7 +191,7 @@ export function WarningBanner({ children }: { children: ReactNode }) {
 /** 空状态提示 */
 export function EmptyHint({ children }: { children: ReactNode }) {
   return (
-    <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
+    <div style={{ padding: 24, textAlign: 'center', color: '#5a6270', fontSize: 14 }}>
       {children}
     </div>
   )
