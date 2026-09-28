@@ -2,12 +2,10 @@ import type { CSSProperties, ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
 /* ============================================================
-   共享 UI 原语：分析报告风
-   - 杂志风小标题
-   - 数字直接铺，无背景无边框
+   共享 UI 原语：Codex 风（GitHub Dark）
    ============================================================ */
 
-/** 区块标题：杂志风（小号、大字距、弱灰、图标同色） */
+/** 区块标题：杂志风 */
 export function SectionTitle({
   icon: Icon,
   title,
@@ -20,20 +18,20 @@ export function SectionTitle({
   actions?: ReactNode
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Icon size={14} style={{ color: '#5a6270' }} strokeWidth={2} />
+        <Icon size={14} style={{ color: '#6e7681' }} strokeWidth={2} />
         <span style={{
           fontSize: 12,
           fontWeight: 600,
-          color: '#5a6270',
+          color: '#6e7681',
           letterSpacing: '0.1em',
           textTransform: 'uppercase',
         }}>
           {title}
         </span>
         {hint && (
-          <span style={{ fontSize: 12, color: '#5a6270', letterSpacing: '0.05em' }}>· {hint}</span>
+          <span style={{ fontSize: 12, color: '#6e7681', letterSpacing: '0.05em' }}>· {hint}</span>
         )}
       </div>
       {actions}
@@ -41,7 +39,7 @@ export function SectionTitle({
   )
 }
 
-/** 大数字：无背景无边框，直接铺在页面上 */
+/** 大数字 */
 export function Stat({
   label,
   value,
@@ -55,7 +53,7 @@ export function Stat({
     <div>
       <div style={{
         fontSize: 12,
-        color: '#5a6270',
+        color: '#6e7681',
         marginBottom: 8,
         letterSpacing: '0.1em',
         textTransform: 'uppercase',
@@ -68,7 +66,7 @@ export function Stat({
         style={{
           fontSize: 32,
           fontWeight: 600,
-          color: accent ? '#2dd4bf' : '#e5e7eb',
+          color: accent ? '#58a6ff' : '#e6edf3',
         }}
       >
         {value}
@@ -77,7 +75,7 @@ export function Stat({
   )
 }
 
-/** 进度条：纯青色，保留 width transition */
+/** 进度条：蓝色，保留 width transition */
 export function ProgressBar({
   value,
   height = 8,
@@ -90,8 +88,8 @@ export function ProgressBar({
       style={{
         width: '100%',
         height,
-        background: '#0a0e14',
-        border: '1px solid #141a22',
+        background: '#0d1117',
+        border: '1px solid #30363d',
         borderRadius: 999,
         overflow: 'hidden',
       }}
@@ -100,7 +98,7 @@ export function ProgressBar({
         style={{
           width: `${Math.min(100, Math.max(0, value))}%`,
           height: '100%',
-          background: '#2dd4bf',
+          background: '#58a6ff',
           borderRadius: 999,
           transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
@@ -109,7 +107,7 @@ export function ProgressBar({
   )
 }
 
-/** 状态徽章（极简） */
+/** 状态徽章 */
 export function Badge({
   children,
   tone = 'neutral',
@@ -120,10 +118,10 @@ export function Badge({
   icon?: LucideIcon
 }) {
   const styles: Record<string, { bg: string; color: string; border: string }> = {
-    neutral: { bg: 'rgba(139, 146, 158, 0.08)', color: '#8b929e', border: 'rgba(139, 146, 158, 0.2)' },
-    accent: { bg: 'rgba(45, 212, 191, 0.1)', color: '#2dd4bf', border: 'rgba(45, 212, 191, 0.25)' },
-    success: { bg: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', border: 'rgba(34, 197, 94, 0.25)' },
-    error: { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'rgba(239, 68, 68, 0.25)' },
+    neutral: { bg: 'rgba(139, 148, 158, 0.1)', color: '#8b949e', border: 'rgba(139, 148, 158, 0.3)' },
+    accent: { bg: 'rgba(56, 139, 253, 0.12)', color: '#58a6ff', border: 'rgba(56, 139, 253, 0.4)' },
+    success: { bg: 'rgba(63, 185, 80, 0.12)', color: '#3fb950', border: 'rgba(63, 185, 80, 0.4)' },
+    error: { bg: 'rgba(248, 81, 73, 0.12)', color: '#f85149', border: 'rgba(248, 81, 73, 0.4)' },
   }
   const s = styles[tone]
   return (
@@ -153,13 +151,13 @@ export function ErrorBanner({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
-        marginTop: 16,
+        marginTop: 12,
         padding: '10px 12px',
-        background: 'rgba(239, 68, 68, 0.06)',
-        border: '1px solid rgba(239, 68, 68, 0.2)',
+        background: 'rgba(248, 81, 73, 0.08)',
+        border: '1px solid rgba(248, 81, 73, 0.3)',
         borderRadius: 4,
         fontSize: 14,
-        color: '#fca5a5',
+        color: '#f85149',
         whiteSpace: 'pre-wrap' as CSSProperties['whiteSpace'],
       }}
     >
@@ -173,13 +171,13 @@ export function WarningBanner({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
-        marginTop: 16,
+        marginTop: 12,
         padding: '10px 12px',
-        background: 'rgba(139, 146, 158, 0.06)',
-        border: '1px solid rgba(139, 146, 158, 0.2)',
+        background: 'rgba(139, 148, 158, 0.08)',
+        border: '1px solid rgba(139, 148, 158, 0.3)',
         borderRadius: 4,
         fontSize: 14,
-        color: '#8b929e',
+        color: '#8b949e',
         whiteSpace: 'pre-wrap' as CSSProperties['whiteSpace'],
       }}
     >
@@ -191,7 +189,7 @@ export function WarningBanner({ children }: { children: ReactNode }) {
 /** 空状态提示 */
 export function EmptyHint({ children }: { children: ReactNode }) {
   return (
-    <div style={{ padding: 24, textAlign: 'center', color: '#5a6270', fontSize: 14 }}>
+    <div style={{ padding: 24, textAlign: 'center', color: '#6e7681', fontSize: 14 }}>
       {children}
     </div>
   )

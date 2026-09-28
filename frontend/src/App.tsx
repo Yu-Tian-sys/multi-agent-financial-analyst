@@ -3,30 +3,23 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
   Activity,
-  Sparkles,
-  Clock,
   Loader2,
   CheckCircle2,
   XCircle,
   Ban,
   FileText,
-  Share2,
   ListTree,
   RotateCcw,
-  ArrowRight,
-  Gauge,
+  ArrowUp,
+  AlertCircle,
 } from 'lucide-react'
-import { HealthCheck } from './components/HealthCheck'
-import { MermaidChart } from './components/MermaidChart'
 import { EventTimeline, type TraceEvent } from './components/EventTimeline'
-import { GlobalMetrics } from './components/GlobalMetrics'
 import { StatusDot } from './components/StatusDot'
-import { SectionTitle, ProgressBar, ErrorBanner, WarningBanner, Badge } from './components/ui'
+import { ErrorBanner, WarningBanner } from './components/ui'
 
 // 任务状态枚举
 type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'rejected'
 
-// 后端任务详情（只取关心的字段，其他忽略）
 interface TaskInfo {
   task_id: string
   status: TaskStatus
@@ -39,25 +32,34 @@ interface TaskInfo {
   total_tokens: number
 }
 
-// 提交响应
 interface AnalyzeResponse {
   task_id: string
   status: string
   message: string
 }
 
-// 轮询终态：到达这些状态停止轮询
 const TERMINAL_STATUSES: TaskStatus[] = ['completed', 'failed', 'rejected']
-
-// 轮询间隔（毫秒）
 const POLL_INTERVAL_MS = 2000
-
-// 轮询最大时长（毫秒，5 分钟）
 const POLL_MAX_MS = 5 * 60 * 1000
 
+/** 根据 current_step 返回阶段文字 */
+function stageText(currentStep?: number): string {
+  if (!currentStep || currentStep <= 0) return '正在准备分析...'
+  const stages = [
+    '正在准备分析...',
+    '正在收集数据...',
+    '正在分析数据...',
+    '正在验证数据...',
+    '正在多空辩论...',
+    '正在评估风险...',
+    '正在撰写报告...',
+  ]
+  if (currentStep >= 7) return '正在合规审查...'
+  return stages[currentStep] ?? '正在分析...'
+}
+
 /**
- * 多 Agent 金融分析 Dashboard
- * 提交分析任务 + 状态轮询
+ * 多 Agent 金融分析 Dashboard（对话式）
  */
 function App() {
   const [topic, setTopic] = useState<string>('')
@@ -66,13 +68,16 @@ function App() {
   const [task, setTask] = useState<TaskInfo | null>(null)
   const [error, setError] = useState<string>('')
   const [pollTimedOut, setPollTimedOut] = useState<boolean>(false)
-  const [mermaidText, setMermaidText] = useState<string>('')
   const [traceError, setTraceError] = useState<string>('')
   const [traceEvents, setTraceEvents] = useState<TraceEvent[]>([])
+  // 折叠状态（纯视觉）
+  const [reportOpen, setReportOpen] = useState<boolean>(false)
+  const [timelineOpen, setTimelineOpen] = useState<boolean>(false)
 
   const pollTimerRef = useRef<number | null>(null)
   const pollStartRef = useRef<number>(0)
   const traceFetchedRef = useRef<string | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   function stopPolling(): void {
     if (pollTimerRef.current !== null) {
@@ -140,6 +145,8 @@ function App() {
     setTask(null)
     setTaskId(null)
     setPollTimedOut(false)
+    setReportOpen(false)
+    setTimelineOpen(false)
     stopPolling()
 
     try {
@@ -176,9 +183,10 @@ function App() {
     setTask(null)
     setError('')
     setPollTimedOut(false)
-    setMermaidText('')
     setTraceError('')
     setTraceEvents([])
+    setReportOpen(false)
+    setTimelineOpen(false)
     traceFetchedRef.current = null
   }
 
@@ -191,7 +199,6 @@ function App() {
         return
       }
       const data = await resp.json() as { mermaid?: string; events?: TraceEvent[]; summary?: unknown }
-      setMermaidText(data.mermaid ?? '')
       setTraceEvents(data.events ?? [])
     } catch (e) {
       setTraceError(e instanceof Error ? e.message : String(e))
@@ -209,37 +216,23 @@ function App() {
     return () => stopPolling()
   }, [])
 
-  const statusIcon =
-    task?.status === 'completed' ? CheckCircle2 :
-    task?.status === 'failed' ? XCircle :
-    task?.status === 'rejected' ? Ban :
-    task?.status === 'running' ? Loader2 :
-    Clock
-  const statusText =
-    task?.status === 'pending' ? '等待中' :
-    task?.status === 'running' ? '分析中' :
-    task?.status === 'completed' ? '分析完成' :
-    task?.status === 'failed' ? '分析失败' :
-    task?.status === 'rejected' ? '任务被拒绝' :
-    '—'
-  const statusTone: 'accent' | 'success' | 'error' | 'neutral' =
-    task?.status === 'completed' ? 'success' :
-    task?.status === 'failed' ? 'error' :
-    task?.status === 'rejected' ? 'neutral' :
-    'accent'
+  // 新消息时滚动到底部
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [task?.status, taskId, error])
 
   const progressPct = task && task.total_steps > 0
     ? Math.min(100, Math.round((task.current_step / task.total_steps) * 100))
     : 0
 
   const submitDisabled = submitting || !topic.trim()
-
-  // 区块样式：上下大留白
-  const sectionStyle: React.CSSProperties = { padding: '40px 0' }
+  const isProcessing = task?.status === 'pending' || task?.status === 'running'
 
   return (
-    <div style={{ maxWidth: 1120, margin: '0 auto', padding: '48px 48px 96px', color: '#e5e7eb' }}>
-      {/* Markdown 报告渲染样式 */}
+    <>
+      {/* Markdown 渲染样式 */}
       <style>{`
         .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
           font-weight: 600;
@@ -247,76 +240,361 @@ function App() {
           line-height: 1.4;
         }
         .markdown-body h1 { font-size: 20px; }
-        .markdown-body h2 { font-size: 14px; border-bottom: 1px solid #141a22; padding-bottom: 6px; }
+        .markdown-body h2 { font-size: 16px; border-bottom: 1px solid #30363d; padding-bottom: 6px; }
         .markdown-body h3 { font-size: 14px; }
         .markdown-body h4 { font-size: 14px; }
         .markdown-body p { margin: 8px 0; }
         .markdown-body ul, .markdown-body ol { margin: 8px 0; padding-left: 24px; }
         .markdown-body li { margin: 4px 0; }
         .markdown-body table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-        .markdown-body th, .markdown-body td { border: 1px solid #141a22; padding: 6px 10px; text-align: left; font-size: 14px; }
-        .markdown-body th { background: #11151c; font-weight: 600; color: #e5e7eb; }
-        .markdown-body code { background: #11151c; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: 'JetBrains Mono', 'Cascadia Code', monospace; color: #2dd4bf; }
-        .markdown-body pre { background: #0a0e14; padding: 16px; border: 1px solid #141a22; border-radius: 4px; overflow: auto; margin: 8px 0; }
-        .markdown-body pre code { background: transparent; padding: 0; font-size: 14px; color: #e5e7eb; }
-        .markdown-body blockquote { border-left: 2px solid #2dd4bf; padding: 4px 12px; color: #8b929e; margin: 8px 0; background: rgba(45,212,191,0.04); border-radius: 0 4px 4px 0; }
-        .markdown-body a { color: #2dd4bf; text-decoration: underline; text-decoration-color: rgba(45,212,191,0.4); }
-        .markdown-body a:hover { text-decoration-color: #2dd4bf; }
-        .markdown-body hr { border: none; border-top: 1px solid #141a22; margin: 16px 0; }
+        .markdown-body th, .markdown-body td { border: 1px solid #30363d; padding: 6px 10px; text-align: left; font-size: 14px; }
+        .markdown-body th { background: #161b22; font-weight: 600; color: #e6edf3; }
+        .markdown-body code { background: #161b22; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: 'JetBrains Mono', 'Cascadia Code', monospace; color: #58a6ff; }
+        .markdown-body pre { background: #0d1117; padding: 16px; border: 1px solid #30363d; border-radius: 4px; overflow: auto; margin: 8px 0; }
+        .markdown-body pre code { background: transparent; padding: 0; font-size: 14px; color: #e6edf3; }
+        .markdown-body blockquote { border-left: 2px solid #58a6ff; padding: 4px 12px; color: #8b949e; margin: 8px 0; background: rgba(56,139,253,0.04); border-radius: 0 4px 4px 0; }
+        .markdown-body a { color: #58a6ff; text-decoration: underline; text-decoration-color: rgba(56,139,253,0.4); }
+        .markdown-body a:hover { text-decoration-color: #58a6ff; }
+        .markdown-body hr { border: none; border-top: 1px solid #30363d; margin: 16px 0; }
         .markdown-body img { max-width: 100%; }
-        .markdown-body strong { color: #e5e7eb; font-weight: 600; }
+        .markdown-body strong { color: #e6edf3; font-weight: 600; }
       `}</style>
 
       {/* ========== Header ========== */}
-      <header style={{ paddingBottom: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div
+      <header
+        style={{
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 24px',
+          borderBottom: '1px solid #21262d',
+          background: '#0d1117',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#161b22',
+              border: '1px solid #30363d',
+              borderRadius: 8,
+            }}
+          >
+            <Activity size={18} color="#58a6ff" strokeWidth={2} />
+          </div>
+          <div>
+            <h1
               style={{
-                width: 36,
-                height: 36,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#11151c',
-                border: '1px solid #141a22',
-                borderRadius: 8,
+                fontSize: 16,
+                fontWeight: 600,
+                margin: 0,
+                color: '#e6edf3',
+                lineHeight: 1.2,
               }}
             >
-              <Activity size={20} color="#2dd4bf" strokeWidth={2} />
-            </div>
-            <div>
-              <h1
-                style={{
-                  fontSize: 32,
-                  fontWeight: 600,
-                  margin: 0,
-                  color: '#e5e7eb',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                多 Agent 金融分析 Dashboard
-              </h1>
-              <p style={{ color: '#5a6270', fontSize: 12, margin: '4px 0 0' }}>
-                后端地址：http://127.0.0.1:8000
-              </p>
-            </div>
+              金融分析助手
+            </h1>
+            <p style={{ color: '#6e7681', fontSize: 12, margin: '2px 0 0' }}>
+              多 Agent 协作
+            </p>
           </div>
-          <StatusDot />
         </div>
+        <StatusDot />
       </header>
 
-      <hr className="divider" />
+      {/* ========== 对话流 ========== */}
+      <main
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '24px',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+            maxWidth: 920,
+            margin: '0 auto',
+            minHeight: '100%',
+            justifyContent: 'flex-start',
+          }}
+        >
+          {/* 空状态 */}
+          {!task && !taskId && !error && (
+            <div
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#6e7681',
+                padding: 48,
+                textAlign: 'center',
+              }}
+            >
+              <Activity size={40} style={{ color: '#30363d', marginBottom: 16 }} />
+              <div style={{ fontSize: 16, fontWeight: 500, color: '#8b949e', marginBottom: 4 }}>
+                输入股票代码开始分析
+              </div>
+              <div style={{ fontSize: 13, color: '#6e7681' }}>
+                例如 AAPL、TSLA 或 招商银行
+              </div>
+            </div>
+          )}
 
-      {/* ========== 提交分析任务 ========== */}
-      <section style={sectionStyle}>
-        <SectionTitle icon={Sparkles} title="提交分析任务" hint="股票代码或行业名称" />
-        <div style={{ display: 'flex', gap: 16, alignItems: 'stretch' }}>
+          {/* 用户消息 */}
+          {taskId && (
+            <div className="msg-user">
+              {task?.topic || topic}
+            </div>
+          )}
+
+          {/* 助手消息 */}
+          {(task || error) && (
+            <div className="msg-assistant">
+              {/* 分析中：脉动点 + 阶段文字 / 精致进度条 + 百分比 */}
+              {task && isProcessing && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div
+                      className="dot-pulse"
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: '#58a6ff',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span style={{ fontSize: 15, color: '#e6edf3', fontWeight: 500 }}>
+                      {stageText(task.current_step)}
+                    </span>
+                  </div>
+                  {task.total_steps > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
+                      <div style={{ flex: 1, height: 6, borderRadius: 999, background: '#21262d', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            width: `${progressPct}%`,
+                            height: '100%',
+                            borderRadius: 999,
+                            background: 'linear-gradient(90deg, #58a6ff, #79c0ff)',
+                            transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+                            boxShadow: '0 0 8px rgba(88, 166, 255, 0.5)',
+                          }}
+                        />
+                      </div>
+                      <span
+                        className="stat-value"
+                        style={{
+                          fontSize: 12,
+                          color: '#8b949e',
+                          minWidth: 40,
+                          textAlign: 'right',
+                        }}
+                      >
+                        {progressPct}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 完成 */}
+              {task?.status === 'completed' && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <CheckCircle2 size={16} style={{ color: '#3fb950' }} />
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>分析完成</span>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 24,
+                      padding: '8px 0',
+                      marginBottom: 12,
+                      borderBottom: '1px solid #21262d',
+                      fontSize: 13,
+                    }}
+                  >
+                    <div>
+                      <span style={{ color: '#6e7681' }}>tokens </span>
+                      <span className="stat-value" style={{ color: '#e6edf3', fontWeight: 600 }}>{task.total_tokens}</span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#6e7681' }}>cost </span>
+                      <span className="stat-value" style={{ color: '#58a6ff', fontWeight: 600 }}>{task.total_cost}</span>
+                      <span style={{ color: '#6e7681' }}> 元</span>
+                    </div>
+                  </div>
+
+                  {/* 折叠：分析报告 */}
+                  {task.final_report && (
+                    <div>
+                      <div
+                        className="collapse-header"
+                        onClick={() => setReportOpen((v) => !v)}
+                      >
+                        <FileText size={14} />
+                        <span>分析报告</span>
+                        <span style={{ marginLeft: 'auto', color: '#6e7681' }}>
+                          {reportOpen ? '收起' : '展开'}
+                        </span>
+                      </div>
+                      {reportOpen && (
+                        <div
+                          className="markdown-body"
+                          style={{
+                            marginTop: 8,
+                            marginBottom: 8,
+                            padding: 12,
+                            background: '#0d1117',
+                            border: '1px solid #30363d',
+                            borderRadius: 4,
+                            maxHeight: 500,
+                            overflow: 'auto',
+                            fontSize: 14,
+                            lineHeight: 1.6,
+                            color: '#e6edf3',
+                          }}
+                        >
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {task.final_report}
+                          </ReactMarkdown>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 折叠：事件时间线 */}
+                  <div>
+                    <div
+                      className="collapse-header"
+                      onClick={() => setTimelineOpen((v) => !v)}
+                    >
+                      <ListTree size={14} />
+                      <span>事件时间线</span>
+                      <span style={{ marginLeft: 'auto', color: '#6e7681' }}>
+                        {timelineOpen ? '收起' : '展开'}
+                      </span>
+                    </div>
+                    {timelineOpen && (
+                      <div style={{ marginTop: 8, marginBottom: 8 }}>
+                        {traceError && <ErrorBanner>{traceError}</ErrorBanner>}
+                        <EventTimeline events={traceEvents} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 重新开始 */}
+                  <div style={{ marginTop: 12 }}>
+                    <button onClick={reset} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+                      <RotateCcw size={13} /> 重新开始
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 失败 */}
+              {task?.status === 'failed' && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <XCircle size={16} style={{ color: '#f85149' }} />
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>分析失败</span>
+                  </div>
+                  {task.error && <ErrorBanner>{task.error}</ErrorBanner>}
+                  <div style={{ marginTop: 12 }}>
+                    <button onClick={reset} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+                      <RotateCcw size={13} /> 重新开始
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 拒绝 */}
+              {task?.status === 'rejected' && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <Ban size={16} style={{ color: '#8b949e' }} />
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>任务被拒绝</span>
+                  </div>
+                  <WarningBanner>
+                    {task.error || '任务在合规预检阶段被拒绝（可能因权限/限流/成本熔断）'}
+                  </WarningBanner>
+                  <div style={{ marginTop: 12 }}>
+                    <button onClick={reset} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+                      <RotateCcw size={13} /> 重新开始
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 提交/轮询错误（无 task 时） */}
+              {!task && error && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <AlertCircle size={16} style={{ color: '#f85149', flexShrink: 0, marginTop: 2 }} />
+                    <div style={{ fontSize: 14, color: '#f85149', whiteSpace: 'pre-wrap' }}>
+                      {error}
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <button onClick={reset} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+                      <RotateCcw size={13} /> 重新开始
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 轮询超时（task 存在但超时） */}
+              {task && pollTimedOut && (
+                <WarningBanner>{error}</WarningBanner>
+              )}
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+      </main>
+
+      {/* ========== 输入区（固定底部） ========== */}
+      <footer
+        style={{
+          flexShrink: 0,
+          padding: '12px 24px',
+          borderTop: '1px solid #21262d',
+          background: '#0d1117',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            maxWidth: 920,
+            margin: '0 auto',
+            alignItems: 'flex-end',
+          }}
+        >
           <input
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="例如 AAPL 或 招商银行"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !submitDisabled) {
+                e.preventDefault()
+                void submitAnalyze()
+              }
+            }}
+            placeholder="输入股票代码或行业名称，例如 AAPL"
             disabled={submitting}
             className="input"
             style={{ flex: 1 }}
@@ -328,156 +606,15 @@ function App() {
             style={{ flexShrink: 0 }}
           >
             {submitting ? (
-              <>
-                <Loader2 size={14} className="animate-spin" /> 提交中
-              </>
+              <Loader2 size={16} className="animate-spin" />
             ) : (
-              <>
-                提交分析 <ArrowRight size={14} />
-              </>
+              <ArrowUp size={16} />
             )}
+            {submitting ? '提交中' : '发送'}
           </button>
         </div>
-
-        {taskId && (
-          <div style={{ marginTop: 16, fontSize: 12, color: '#5a6270', display: 'flex', alignItems: 'center', gap: 6 }}>
-            task_id:
-            <code style={{ background: '#0a0e14', padding: '2px 6px', borderRadius: 4, color: '#2dd4bf', border: '1px solid #141a22', fontSize: 12 }}>
-              {taskId}
-            </code>
-          </div>
-        )}
-
-        {error && !pollTimedOut && <ErrorBanner>{error}</ErrorBanner>}
-        {pollTimedOut && <WarningBanner>{error}</WarningBanner>}
-      </section>
-
-      <hr className="divider" />
-
-      {/* ========== 任务状态 ========== */}
-      <section style={sectionStyle}>
-        <SectionTitle icon={Gauge} title="任务状态" />
-        {!task ? (
-          <div style={{ padding: 16, textAlign: 'center', color: '#5a6270', fontSize: 14 }}>
-            尚未提交任务
-          </div>
-        ) : (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <Badge tone={statusTone} icon={statusIcon}>
-                {statusText}
-              </Badge>
-              {task.topic && (
-                <span style={{ fontSize: 12, color: '#5a6270' }}>· {task.topic}</span>
-              )}
-            </div>
-
-            {task.total_steps > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, color: '#5a6270' }}>进度</span>
-                  <span className="stat-value" style={{ fontSize: 14, color: '#2dd4bf', fontWeight: 600 }}>
-                    {progressPct}%
-                  </span>
-                </div>
-                <ProgressBar value={progressPct} />
-              </div>
-            )}
-
-            {task.status === 'completed' && (
-              <div style={{ display: 'flex', gap: 32, fontSize: 14 }}>
-                <div>
-                  <span style={{ color: '#5a6270' }}>tokens </span>
-                  <span className="stat-value" style={{ color: '#e5e7eb', fontWeight: 600 }}>{task.total_tokens}</span>
-                </div>
-                <div>
-                  <span style={{ color: '#5a6270' }}>cost </span>
-                  <span className="stat-value" style={{ color: '#2dd4bf', fontWeight: 600 }}>{task.total_cost}</span>
-                  <span style={{ color: '#5a6270' }}> 元</span>
-                </div>
-              </div>
-            )}
-
-            {task.status === 'failed' && task.error && <ErrorBanner>{task.error}</ErrorBanner>}
-
-            {task.status === 'rejected' && (
-              <WarningBanner>
-                {task.error || '任务在合规预检阶段被拒绝（可能因权限/限流/成本熔断）'}
-              </WarningBanner>
-            )}
-
-            <div style={{ marginTop: 16 }}>
-              <button onClick={reset} className="btn-ghost">
-                <RotateCcw size={14} /> 重新开始
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* ========== 分析报告（仅 completed） ========== */}
-      {task?.status === 'completed' && task.final_report && (
-        <>
-          <hr className="divider" />
-          <section style={sectionStyle}>
-            <SectionTitle icon={FileText} title="分析报告" hint="Markdown 渲染" />
-            <div
-              className="markdown-body"
-              style={{
-                fontSize: 14,
-                lineHeight: 1.6,
-                color: '#e5e7eb',
-                maxHeight: 600,
-                overflow: 'auto',
-              }}
-            >
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {task.final_report}
-              </ReactMarkdown>
-            </div>
-          </section>
-        </>
-      )}
-
-      {/* ========== Agent 协作流程（仅 completed） ========== */}
-      {task?.status === 'completed' && (
-        <>
-          <hr className="divider" />
-          <section style={sectionStyle}>
-            <SectionTitle icon={Share2} title="Agent 协作流程" hint="Mermaid" />
-            {traceError && <ErrorBanner>{traceError}</ErrorBanner>}
-            <MermaidChart chart={mermaidText} />
-          </section>
-        </>
-      )}
-
-      {/* ========== 事件时间线（仅 completed） ========== */}
-      {task?.status === 'completed' && (
-        <>
-          <hr className="divider" />
-          <section style={sectionStyle}>
-            <SectionTitle icon={ListTree} title="事件时间线" hint={`${traceEvents.length} 个事件`} />
-            {traceError && <ErrorBanner>{traceError}</ErrorBanner>}
-            <EventTimeline events={traceEvents} />
-          </section>
-        </>
-      )}
-
-      <hr className="divider" />
-
-      {/* ========== 全局指标 ========== */}
-      <section style={sectionStyle}>
-        <SectionTitle icon={Gauge} title="全局指标" hint="今日" />
-        <GlobalMetrics />
-      </section>
-
-      <hr className="divider" />
-
-      {/* ========== 健康检查 ========== */}
-      <section style={sectionStyle}>
-        <HealthCheck />
-      </section>
-    </div>
+      </footer>
+    </>
   )
 }
 
