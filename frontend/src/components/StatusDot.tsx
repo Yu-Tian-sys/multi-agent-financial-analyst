@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 
 /** 状态种类：检测中 / 在线 / 离线 */
 type HealthStatus = 'checking' | 'online' | 'offline'
@@ -58,24 +59,31 @@ export function StatusDot() {
     status === 'offline' ? '后端离线' :
     '检测中...'
 
-  // 在线/离线时圆点加柔和光晕
-  const glow =
-    status === 'online' ? '0 0 8px rgba(34,197,94,0.6)' :
-    status === 'offline' ? '0 0 8px rgba(239,68,68,0.5)' :
-    'none'
+  // pulse 动画类（仅在线/离线时启用）
+  const animClass =
+    status === 'online' ? 'status-dot-online' :
+    status === 'offline' ? 'status-dot-offline' :
+    ''
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div
+      <motion.div
+        key={status}
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+        className={animClass}
         style={{
           width: 8,
           height: 8,
           borderRadius: '50%',
           background: dotColor,
-          boxShadow: glow,
+          boxShadow: status === 'checking'
+            ? 'none'
+            : `0 0 8px ${status === 'online' ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.5)'}`,
         }}
       />
-      <span style={{ fontSize: 13, color: textColor }}>{text}</span>
+      <span style={{ fontSize: 12, color: textColor, fontWeight: 500 }}>{text}</span>
     </div>
   )
 }

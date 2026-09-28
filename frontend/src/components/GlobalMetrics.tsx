@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import { RefreshCw, TrendingUp, CheckCircle2, Percent, Coins, Cpu, AlertTriangle } from 'lucide-react'
 
 /**
  * /metrics 接口返回结构
@@ -132,72 +134,84 @@ export function GlobalMetrics() {
   ].filter((b) => b.count > 0)
   const maxBar = Math.max(1, ...statusBars.map((b) => b.count))
 
-  // 数字卡片定义
+  // 数字卡片定义（带图标 + accent 高亮关键指标）
   const cards = [
-    { label: '今日任务数', value: totalTasks },
-    { label: '今日成功', value: completed },
-    { label: '今日成功率', value: `${successRate}%` },
-    { label: '今日总成本(元)', value: totalCost.toFixed(6) },
-    { label: '今日总 tokens', value: totalTokens },
+    { label: '今日任务数', value: totalTasks, icon: TrendingUp, accent: false },
+    { label: '今日成功', value: completed, icon: CheckCircle2, accent: false },
+    { label: '今日成功率', value: `${successRate}%`, icon: Percent, accent: true },
+    { label: '今日总成本', value: `¥${totalCost.toFixed(4)}`, icon: Coins, accent: false },
+    { label: '今日总 tokens', value: totalTokens.toLocaleString(), icon: Cpu, accent: false },
   ]
 
   return (
     <div>
       {/* 顶部：刷新按钮 */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
         <button
           onClick={() => void fetchAll()}
           disabled={state.loading}
-          style={{
-            padding: '4px 12px',
-            fontSize: 12,
-            backgroundColor: state.loading ? '#1f2937' : '#1f2937',
-            color: '#9ca3af',
-            border: '1px solid #374151',
-            borderRadius: 4,
-            cursor: state.loading ? 'not-allowed' : 'pointer',
-          }}
+          className="btn-ghost"
+          style={{ fontSize: 12, padding: '6px 12px' }}
         >
-          {state.loading ? '加载中...' : '刷新'}
+          <RefreshCw size={12} className={state.loading ? 'spin' : ''} />
+          {state.loading ? '加载中' : '刷新'}
         </button>
       </div>
 
-      {/* 加载中 */}
+      {/* 加载中（首次） */}
       {state.loading && !state.metrics && !state.cost && !state.overview && (
-        <div style={{ color: '#9ca3af', fontSize: 13, padding: 20, textAlign: 'center' }}>
+        <div style={{ padding: 32, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
           加载中...
         </div>
       )}
 
       {/* 大数字卡片 */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-        {cards.map((card) => (
-          <div
-            key={card.label}
-            style={{
-              flex: 1,
-              minWidth: 120,
-              padding: 16,
-              background: '#131820',
-              border: '1px solid #1f2937',
-              borderRadius: 8,
-            }}
-          >
-            <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>
-              {card.label}
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 600, color: '#e5e7eb' }}>
-              {card.value}
-            </div>
-          </div>
-        ))}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 18 }}>
+        {cards.map((card, idx) => {
+          const Icon = card.icon
+          return (
+            <motion.div
+              key={card.label}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, delay: idx * 0.04 }}
+              style={{
+                padding: 14,
+                background: '#0f1419',
+                border: '1px solid #1f2937',
+                borderRadius: 8,
+                transition: 'border-color 0.2s ease',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 11, color: '#6b7280', letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+                  {card.label}
+                </span>
+                <Icon size={14} style={{ color: card.accent ? '#2dd4bf' : '#374151' }} />
+              </div>
+              <div
+                className="stat-value"
+                style={{
+                  fontSize: 22,
+                  fontWeight: 600,
+                  color: card.accent ? '#2dd4bf' : '#e5e7eb',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {card.value}
+              </div>
+            </motion.div>
+          )
+        })}
       </div>
 
       {/* 今日状态分布 */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8, color: '#e5e7eb' }}>今日状态分布</div>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10, color: '#9ca3af', letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+          今日状态分布
+        </div>
         {statusBars.length === 0 ? (
-          <div style={{ color: '#9ca3af', fontSize: 13, padding: 8 }}>暂无数据</div>
+          <div style={{ padding: 12, color: '#6b7280', fontSize: 13, textAlign: 'center' }}>暂无数据</div>
         ) : (
           statusBars.map((bar) => (
             <div
@@ -205,23 +219,31 @@ export function GlobalMetrics() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
-                marginBottom: 4,
+                gap: 12,
+                marginBottom: 6,
                 fontSize: 13,
               }}
             >
-              <span style={{ width: 200, color: '#9ca3af' }}>{bar.name}</span>
-              <div style={{ flex: 1, height: 12, background: '#1f2937', borderRadius: 6, overflow: 'hidden' }}>
-                <div
+              <span style={{ width: 200, color: '#9ca3af', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
+                {bar.name}
+              </span>
+              <div style={{ flex: 1, height: 10, background: '#0f1419', border: '1px solid #1f2937', borderRadius: 999, overflow: 'hidden' }}>
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(bar.count / maxBar) * 100}%` }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                   style={{
-                    width: `${(bar.count / maxBar) * 100}%`,
                     height: '100%',
-                    background: bar.color,
-                    transition: 'width 0.3s',
+                    background: `linear-gradient(90deg, ${bar.color}, ${bar.color}dd)`,
+                    borderRadius: 999,
+                    boxShadow: `0 0 6px ${bar.color}55`,
                   }}
                 />
               </div>
-              <span style={{ width: 30, textAlign: 'right', color: '#e5e7eb', fontWeight: 500 }}>
+              <span
+                className="stat-value"
+                style={{ width: 36, textAlign: 'right', color: '#e5e7eb', fontWeight: 600, fontSize: 13 }}
+              >
                 {bar.count}
               </span>
             </div>
@@ -231,24 +253,55 @@ export function GlobalMetrics() {
 
       {/* 接口失败提示 */}
       {(state.metrics && !state.metrics.ok) || (state.cost && !state.cost.ok) || (state.overview && !state.overview.ok) ? (
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 12 }}>
           {state.metrics && !state.metrics.ok && (
-            <div style={{ padding: 6, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 4, fontSize: 12, marginBottom: 4 }}>
-              /metrics 加载失败：{state.metrics.error}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5', borderRadius: 6, fontSize: 12 }}>
+              <AlertTriangle size={12} /> /metrics 加载失败：{state.metrics.error}
             </div>
           )}
           {state.cost && !state.cost.ok && (
-            <div style={{ padding: 6, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 4, fontSize: 12, marginBottom: 4 }}>
-              /cost 加载失败：{state.cost.error}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5', borderRadius: 6, fontSize: 12 }}>
+              <AlertTriangle size={12} /> /cost 加载失败：{state.cost.error}
             </div>
           )}
           {state.overview && !state.overview.ok && (
-            <div style={{ padding: 6, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 4, fontSize: 12, marginBottom: 4 }}>
-              /overview 加载失败：{state.overview.error}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5', borderRadius: 6, fontSize: 12 }}>
+              <AlertTriangle size={12} /> /overview 加载失败：{state.overview.error}
             </div>
           )}
         </div>
       ) : null}
+
+      {/* overview 报告（如果有） */}
+      {o && (
+        <details style={{ marginTop: 14 }}>
+          <summary style={{ cursor: 'pointer', color: '#6b7280', fontSize: 12, userSelect: 'none' }}>
+            查看今日总览报告
+          </summary>
+          <pre
+            style={{
+              marginTop: 8,
+              padding: 12,
+              background: '#0f1419',
+              border: '1px solid #1f2937',
+              borderRadius: 6,
+              fontSize: 12,
+              color: '#9ca3af',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              margin: 0,
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+          >
+            {o}
+          </pre>
+        </details>
+      )}
+
+      <style>{`
+        .spin { animation: spin 0.9s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   )
 }

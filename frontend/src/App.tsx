@@ -1,11 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import {
+  Activity,
+  Sparkles,
+  Clock,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Ban,
+  FileText,
+  Share2,
+  ListTree,
+  RotateCcw,
+  ArrowRight,
+  Gauge,
+} from 'lucide-react'
 import { HealthCheck } from './components/HealthCheck'
 import { MermaidChart } from './components/MermaidChart'
 import { EventTimeline, type TraceEvent } from './components/EventTimeline'
 import { GlobalMetrics } from './components/GlobalMetrics'
 import { StatusDot } from './components/StatusDot'
+import { TopProgressBar } from './components/TopProgressBar'
+import { SectionTitle, ProgressBar, ErrorBanner, WarningBanner, Badge } from './components/ui'
 
 // 任务状态枚举
 type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'rejected'
@@ -39,6 +57,16 @@ const POLL_INTERVAL_MS = 2000
 // 轮询最大时长（毫秒，5 分钟）
 const POLL_MAX_MS = 5 * 60 * 1000
 
+// 卡片入场动画（framer-motion，克制：淡入 + 上滑 8px）
+const cardVariants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.04, duration: 0.35, ease: [0.22, 1, 0.36, 1] as const },
+  }),
+}
+
 /**
  * 多 Agent 金融分析 Dashboard
  * 提交分析任务 + 状态轮询
@@ -62,6 +90,8 @@ function App() {
   const [traceError, setTraceError] = useState<string>('')
   // trace 事件列表（来自 /trace 接口，用于时间线渲染）
   const [traceEvents, setTraceEvents] = useState<TraceEvent[]>([])
+  // 任务刚完成标记（用于触发卡片闪光动画，1.5s 后自动关闭）
+  const [justCompleted, setJustCompleted] = useState<boolean>(false)
 
   // 轮询定时器引用
   const pollTimerRef = useRef<number | null>(null)
@@ -234,19 +264,34 @@ function App() {
     return () => stopPolling()
   }, [])
 
-  // 状态对应的颜色和文案
-  const statusColor =
-    task?.status === 'completed' ? '#22c55e' :
-    task?.status === 'failed' ? '#ef4444' :
-    task?.status === 'rejected' ? '#f59e0b' :
-    '#2dd4bf'
+  // 任务进入 completed 时触发卡片闪光动画（1.5s 后关闭）
+  useEffect(() => {
+    if (task?.status === 'completed') {
+      setJustCompleted(true)
+      const t = window.setTimeout(() => setJustCompleted(false), 1500)
+      return () => window.clearTimeout(t)
+    }
+  }, [task?.status])
+
+  // 状态对应的颜色、文案、图标
+  const statusIcon =
+    task?.status === 'completed' ? CheckCircle2 :
+    task?.status === 'failed' ? XCircle :
+    task?.status === 'rejected' ? Ban :
+    task?.status === 'running' ? Loader2 :
+    Clock
   const statusText =
-    task?.status === 'pending' ? '等待中（pending）' :
-    task?.status === 'running' ? '分析中（running）' :
+    task?.status === 'pending' ? '等待中' :
+    task?.status === 'running' ? '分析中' :
     task?.status === 'completed' ? '分析完成' :
     task?.status === 'failed' ? '分析失败' :
     task?.status === 'rejected' ? '任务被拒绝' :
     '—'
+  const statusTone: 'accent' | 'success' | 'error' | 'warning' =
+    task?.status === 'completed' ? 'success' :
+    task?.status === 'failed' ? 'error' :
+    task?.status === 'rejected' ? 'warning' :
+    'accent'
 
   // 进度百分比
   const progressPct = task && task.total_steps > 0
@@ -257,7 +302,9 @@ function App() {
   const submitDisabled = submitting || !topic.trim()
 
   return (
-    <div style={{ maxWidth: 960, margin: '40px auto', padding: 32, fontFamily: 'system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif', color: '#e5e7eb' }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 32px 64px', color: '#e5e7eb' }}>
+      {/* 顶部 indeterminate 进度线：提交中或 running 时显示 */}
+      <TopProgressBar active={submitting || task?.status === 'running'} />
       {/* 全局样式：Markdown 报告渲染样式（限定在 .markdown-body 内） */}
       <style>{`
         .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
@@ -266,7 +313,7 @@ function App() {
           line-height: 1.4;
         }
         .markdown-body h1 { font-size: 20px; }
-        .markdown-body h2 { font-size: 17px; }
+        .markdown-body h2 { font-size: 17px; border-bottom: 1px solid #1f2937; padding-bottom: 6px; }
         .markdown-body h3 { font-size: 15px; }
         .markdown-body h4 { font-size: 14px; }
         .markdown-body p { margin: 8px 0; }
@@ -274,215 +321,292 @@ function App() {
         .markdown-body li { margin: 4px 0; }
         .markdown-body table { border-collapse: collapse; width: 100%; margin: 12px 0; }
         .markdown-body th, .markdown-body td { border: 1px solid #374151; padding: 6px 10px; text-align: left; font-size: 13px; }
-        .markdown-body th { background: #1f2937; font-weight: 600; }
-        .markdown-body code { background: #1f2937; padding: 2px 4px; border-radius: 3px; font-size: 13px; font-family: ui-monospace, "Cascadia Code", "Microsoft YaHei", monospace; }
-        .markdown-body pre { background: #1f2937; padding: 12px; border-radius: 6px; overflow: auto; margin: 8px 0; }
-        .markdown-body pre code { background: transparent; padding: 0; font-size: 13px; }
-        .markdown-body blockquote { border-left: 3px solid #4b5563; padding-left: 12px; color: #9ca3af; margin: 8px 0; }
-        .markdown-body a { color: #2dd4bf; text-decoration: underline; }
-        .markdown-body hr { border: none; border-top: 1px solid #374151; margin: 16px 0; }
+        .markdown-body th { background: #1f2937; font-weight: 600; color: #e5e7eb; }
+        .markdown-body code { background: #1f2937; padding: 2px 5px; border-radius: 4px; font-size: 12.5px; font-family: 'JetBrains Mono', 'Cascadia Code', monospace; color: #2dd4bf; }
+        .markdown-body pre { background: #0f1419; padding: 12px; border: 1px solid #1f2937; border-radius: 6px; overflow: auto; margin: 8px 0; }
+        .markdown-body pre code { background: transparent; padding: 0; font-size: 13px; color: #e5e7eb; }
+        .markdown-body blockquote { border-left: 3px solid #2dd4bf; padding-left: 12px; color: #9ca3af; margin: 8px 0; background: rgba(45,212,191,0.04); padding: 6px 12px; border-radius: 0 4px 4px 0; }
+        .markdown-body a { color: #2dd4bf; text-decoration: underline; text-decoration-color: rgba(45,212,191,0.4); }
+        .markdown-body a:hover { text-decoration-color: #2dd4bf; }
+        .markdown-body hr { border: none; border-top: 1px solid #1f2937; margin: 16px 0; }
         .markdown-body img { max-width: 100%; }
+        .markdown-body strong { color: #f3f4f6; font-weight: 600; }
       `}</style>
-      {/* 第 1 块：标题 + 状态指示点 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 600, marginBottom: 4 }}>
-            多 Agent 金融分析 Dashboard
-          </h1>
-          <p style={{ color: '#9ca3af', fontSize: 15 }}>
-            后端地址：http://127.0.0.1:8000
-          </p>
+
+      {/* ========== Header：品牌区 + StatusDot ========== */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingBottom: 24,
+          marginBottom: 24,
+          borderBottom: '1px solid #1f2937',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Logo */}
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'linear-gradient(135deg, #2dd4bf 0%, #22d3ee 100%)',
+              borderRadius: 10,
+              boxShadow: '0 4px 12px rgba(45, 212, 191, 0.25), 0 1px 0 rgba(255,255,255,0.2) inset',
+            }}
+          >
+            <Activity size={22} color="#0a0e14" strokeWidth={2.5} />
+          </div>
+          <div>
+            <h1
+              style={{
+                fontSize: 22,
+                fontWeight: 700,
+                margin: 0,
+                letterSpacing: '-0.01em',
+                background: 'linear-gradient(135deg, #ffffff 0%, #2dd4bf 100%)',
+                WebkitBackgroundClip: 'text',
+                backgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              } as React.CSSProperties}
+            >
+              多 Agent 金融分析 Dashboard
+            </h1>
+            <p style={{ color: '#6b7280', fontSize: 13, margin: '4px 0 0' }}>
+              后端地址：http://127.0.0.1:8000
+            </p>
+          </div>
         </div>
         <StatusDot />
-      </div>
+      </motion.div>
 
-      {/* 第 2 块：提交表单 */}
-      <div className="card">
-        <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
-          股票代码或行业名称
-        </label>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
-          <input
-            type="text"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="例如 AAPL 或 招商银行"
-            disabled={submitting}
-            style={{
-              flex: 1,
-              padding: '8px 16px',
-              fontSize: 14,
-              border: '1px solid #374151',
-              borderRadius: 6,
-              boxSizing: 'border-box',
-              outline: 'none',
-              background: '#0f1419',
-              color: '#e5e7eb',
-            }}
-          />
-          <button
-            onClick={submitAnalyze}
-            disabled={submitDisabled}
-            style={{
-              flexShrink: 0,
-              padding: '8px 16px',
-              fontSize: 14,
-              backgroundColor: '#2dd4bf',
-              color: '#0a0e14',
-              border: 'none',
-              borderRadius: 6,
-              cursor: submitDisabled ? 'not-allowed' : 'pointer',
-              opacity: submitDisabled ? 0.6 : 1,
-            }}
-          >
-            {submitting ? '提交中...' : '提交分析'}
-          </button>
-        </div>
-        {/* 提交后的 task_id */}
-        {taskId && (
-          <div style={{ marginTop: 12, fontSize: 13, color: '#9ca3af' }}>
-            task_id: <code style={{ background: '#1f2937', padding: '2px 6px', borderRadius: 4, color: '#e5e7eb' }}>{taskId}</code>
-          </div>
-        )}
-        {/* 错误信息（红色） */}
-        {error && !pollTimedOut && (
-          <div style={{ marginTop: 12, padding: 8, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 6, fontSize: 13, whiteSpace: 'pre-wrap' }}>
-            {error}
-          </div>
-        )}
-        {/* 轮询超时提示（橙色） */}
-        {pollTimedOut && (
-          <div style={{ marginTop: 12, padding: 8, background: 'rgba(245,158,11,0.1)', color: '#f59e0b', borderRadius: 6, fontSize: 13 }}>
-            {error}
-          </div>
-        )}
-      </div>
+      {/* ========== 主区域栅格（12 列） ========== */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 20 }}>
 
-      {/* 第 3 块：任务状态 */}
-      {task && (
-        <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
-            任务状态
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: statusColor, marginBottom: 12 }}>
-            {statusText}
+        {/* ---------- Row 1：提交表单（7/12） + 任务状态（5/12） ---------- */}
+        <motion.div className="card" custom={0} variants={cardVariants} initial="hidden" animate="visible" style={{ gridColumn: 'span 7', marginBottom: 0 }}>
+          <SectionTitle icon={Sparkles} title="提交分析任务" hint="股票代码或行业名称" />
+          <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
+            <input
+              type="text"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="例如 AAPL 或 招商银行"
+              disabled={submitting}
+              className="input"
+              style={{ flex: 1 }}
+            />
+            <button
+              onClick={submitAnalyze}
+              disabled={submitDisabled}
+              className="btn-primary"
+              style={{ flexShrink: 0 }}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> 提交中
+                </>
+              ) : (
+                <>
+                  提交分析 <ArrowRight size={14} />
+                </>
+              )}
+            </button>
           </div>
 
-          {/* 进度条 */}
-          {task.total_steps > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: 4 }}>
-                进度：{progressPct}%
+          {/* 提交后的 task_id */}
+          {taskId && (
+            <div style={{ marginTop: 12, fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
+              task_id:
+              <code style={{ background: '#0f1419', padding: '2px 6px', borderRadius: 4, color: '#2dd4bf', border: '1px solid #1f2937', fontSize: 12 }}>
+                {taskId}
+              </code>
+            </div>
+          )}
+
+          {/* 错误信息 */}
+          {error && !pollTimedOut && (
+            <ErrorBanner>{error}</ErrorBanner>
+          )}
+          {/* 轮询超时提示 */}
+          {pollTimedOut && (
+            <WarningBanner>{error}</WarningBanner>
+          )}
+        </motion.div>
+
+        <motion.div
+          className={justCompleted ? 'card card-flash' : 'card'}
+          custom={1}
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          style={{ gridColumn: 'span 5', marginBottom: 0 }}
+        >
+          <SectionTitle icon={Gauge} title="任务状态" />
+          {!task ? (
+            <div style={{ padding: 16, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
+              尚未提交任务
+            </div>
+          ) : (
+            <div>
+              {/* 状态徽章 + 文案 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <Badge tone={statusTone} icon={statusIcon}>
+                  {statusText}
+                </Badge>
+                {task.topic && (
+                  <span style={{ fontSize: 12, color: '#6b7280' }}>· {task.topic}</span>
+                )}
               </div>
-              <div style={{ width: '100%', height: 8, background: '#1f2937', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ width: `${progressPct}%`, height: '100%', background: '#2dd4bf', transition: 'width 0.3s' }} />
+
+              {/* 进度条 */}
+              {task.total_steps > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, color: '#6b7280' }}>进度</span>
+                    <span className="stat-value" style={{ fontSize: 13, color: '#2dd4bf', fontWeight: 600 }}>
+                      {progressPct}%
+                    </span>
+                  </div>
+                  <ProgressBar value={progressPct} />
+                </div>
+              )}
+
+              {/* 完成时显示 token 和成本 */}
+              {task.status === 'completed' && (
+                <div style={{ display: 'flex', gap: 16, padding: '10px 12px', background: '#0f1419', border: '1px solid #1f2937', borderRadius: 6, fontSize: 12 }}>
+                  <div>
+                    <span style={{ color: '#6b7280' }}>tokens </span>
+                    <span className="stat-value" style={{ color: '#e5e7eb', fontWeight: 600 }}>{task.total_tokens}</span>
+                  </div>
+                  <div>
+                    <span style={{ color: '#6b7280' }}>cost </span>
+                    <span className="stat-value" style={{ color: '#2dd4bf', fontWeight: 600 }}>{task.total_cost}</span>
+                    <span style={{ color: '#6b7280' }}> 元</span>
+                  </div>
+                </div>
+              )}
+
+              {/* 失败时显示错误 */}
+              {task.status === 'failed' && task.error && (
+                <ErrorBanner>{task.error}</ErrorBanner>
+              )}
+
+              {/* 被拒绝时显示原因 */}
+              {task.status === 'rejected' && (
+                <WarningBanner>
+                  {task.error || '任务在合规预检阶段被拒绝（可能因权限/限流/成本熔断）'}
+                </WarningBanner>
+              )}
+
+              {/* 重新开始按钮 */}
+              <div style={{ marginTop: 14 }}>
+                <button onClick={reset} className="btn-ghost">
+                  <RotateCcw size={13} /> 重新开始
+                </button>
               </div>
             </div>
           )}
+        </motion.div>
 
-          {/* 完成时显示 token 和成本 */}
-          {task.status === 'completed' && (
-            <div style={{ fontSize: 13, color: '#9ca3af' }}>
-              总 tokens：<b>{task.total_tokens}</b>，总成本：<b>{task.total_cost}</b> 元
-            </div>
+        {/* ---------- Row 2：分析报告（7/12） + Mermaid 流程（5/12） ---------- */}
+        <AnimatePresence>
+          {task?.status === 'completed' && task.final_report && (
+            <motion.div
+              key="report"
+              className="card"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              style={{ gridColumn: 'span 7', marginBottom: 0 }}
+            >
+              <SectionTitle icon={FileText} title="分析报告" hint="Markdown 渲染" />
+              <div
+                className="markdown-body panel"
+                style={{
+                  background: '#0f1419',
+                  borderRadius: 8,
+                  padding: 20,
+                  maxHeight: 600,
+                  overflow: 'auto',
+                  fontSize: 14,
+                  lineHeight: 1.75,
+                  color: '#e5e7eb',
+                }}
+              >
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {task.final_report}
+                </ReactMarkdown>
+              </div>
+            </motion.div>
           )}
+        </AnimatePresence>
 
-          {/* 失败时显示错误 */}
-          {task.status === 'failed' && task.error && (
-            <div style={{ marginTop: 8, padding: 8, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 6, fontSize: 13, whiteSpace: 'pre-wrap' }}>
-              {task.error}
-            </div>
+        <AnimatePresence>
+          {task?.status === 'completed' && (
+            <motion.div
+              key="mermaid"
+              className="card"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.35, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+              style={{ gridColumn: 'span 5', marginBottom: 0 }}
+            >
+              <SectionTitle icon={Share2} title="Agent 协作流程" hint="Mermaid" />
+              {traceError && (
+                <ErrorBanner>{traceError}</ErrorBanner>
+              )}
+              <MermaidChart chart={mermaidText} />
+            </motion.div>
           )}
+        </AnimatePresence>
 
-          {/* 被拒绝时显示原因 */}
-          {task.status === 'rejected' && (
-            <div style={{ marginTop: 8, padding: 8, background: 'rgba(245,158,11,0.1)', color: '#f59e0b', borderRadius: 6, fontSize: 13, whiteSpace: 'pre-wrap' }}>
-              {task.error || '任务在合规预检阶段被拒绝（可能因权限/限流/成本熔断）'}
-            </div>
+        {/* ---------- Row 3：事件时间线（全宽） ---------- */}
+        <AnimatePresence>
+          {task?.status === 'completed' && (
+            <motion.div
+              key="timeline"
+              className="card"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.35, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+              style={{ gridColumn: 'span 12', marginBottom: 0 }}
+            >
+              <SectionTitle icon={ListTree} title="事件时间线" hint={`${traceEvents.length} 个事件`} />
+              {traceError && (
+                <ErrorBanner>{traceError}</ErrorBanner>
+              )}
+              <EventTimeline events={traceEvents} />
+            </motion.div>
           )}
+        </AnimatePresence>
 
-          {/* 重新开始按钮 */}
-          <button
-            onClick={reset}
-            style={{
-              marginTop: 16,
-              padding: '6px 12px',
-              fontSize: 13,
-              backgroundColor: '#1f2937',
-              color: '#9ca3af',
-              border: '1px solid #374151',
-              borderRadius: 6,
-              cursor: 'pointer',
-            }}
-          >
-            重新开始
-          </button>
+        {/* ---------- Row 4：全局指标（全宽） ---------- */}
+        <motion.div
+          className="card"
+          custom={4}
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          style={{ gridColumn: 'span 12', marginBottom: 0 }}
+        >
+          <SectionTitle icon={Gauge} title="全局指标" hint="今日" />
+          <GlobalMetrics />
+        </motion.div>
+
+        {/* ---------- Row 5：健康检查（折叠保留） ---------- */}
+        <div style={{ gridColumn: 'span 12' }}>
+          <HealthCheck />
         </div>
-      )}
-
-      {/* 第 3.5 块：分析报告（仅 completed 时显示） */}
-      {task?.status === 'completed' && task.final_report && (
-        <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
-            分析报告
-          </div>
-          <div className="markdown-body" style={{
-            background: '#131820',
-            borderRadius: 8,
-            border: '1px solid #1f2937',
-            padding: 20,
-            maxHeight: 600,
-            overflow: 'auto',
-            fontSize: 14,
-            lineHeight: 1.7,
-            color: '#e5e7eb',
-          }}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {task.final_report}
-            </ReactMarkdown>
-          </div>
-        </div>
-      )}
-
-      {/* 第 3.7 块：Agent 协作流程（仅 completed 时显示） */}
-      {task?.status === 'completed' && (
-        <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
-            Agent 协作流程
-          </div>
-          {traceError && (
-            <div style={{ padding: 8, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 6, fontSize: 13, marginBottom: 12, whiteSpace: 'pre-wrap' }}>
-              {traceError}
-            </div>
-          )}
-          <MermaidChart chart={mermaidText} />
-        </div>
-      )}
-
-      {/* 第 3.8 块：事件时间线（仅 completed 时显示） */}
-      {task?.status === 'completed' && (
-        <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
-            事件时间线
-          </div>
-          {traceError && (
-            <div style={{ padding: 8, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 6, fontSize: 13, marginBottom: 12, whiteSpace: 'pre-wrap' }}>
-              {traceError}
-            </div>
-          )}
-          <EventTimeline events={traceEvents} />
-        </div>
-      )}
-
-      {/* 第 4 块：后端健康检查（保留参考） */}
-      <HealthCheck />
-
-      {/* 第 5 块：全局指标 + 成本概览（始终显示） */}
-      <div className="card">
-        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
-          全局指标
-        </div>
-        <GlobalMetrics />
       </div>
     </div>
   )

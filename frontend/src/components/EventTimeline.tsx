@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronDown, Clock, Hash, Coins, Cpu, Bot } from 'lucide-react'
 
 /**
  * 单个 trace 事件的结构（对应后端 traces 表字段）
@@ -52,7 +54,7 @@ export function EventTimeline({ events }: EventTimelineProps) {
   // 空列表占位
   if (events.length === 0) {
     return (
-      <div style={{ color: '#9ca3af', fontSize: 13, padding: 20, textAlign: 'center' }}>
+      <div style={{ padding: 32, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
         暂无事件记录
       </div>
     )
@@ -66,11 +68,6 @@ export function EventTimeline({ events }: EventTimelineProps) {
 
   return (
     <div style={containerStyle}>
-      {/* 顶部统计 */}
-      <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 12 }}>
-        共 {events.length} 个事件
-      </div>
-
       {/* 事件列表 */}
       <div style={{ position: 'relative' }}>
         {/* 左侧贯穿的竖线（从第一个圆点到最后一个） */}
@@ -79,10 +76,11 @@ export function EventTimeline({ events }: EventTimelineProps) {
             style={{
               position: 'absolute',
               left: 7,
-              top: 20,
-              bottom: 20,
+              top: 16,
+              bottom: 16,
               width: 2,
-              background: '#374151',
+              background: 'linear-gradient(180deg, #2dd4bf 0%, #1f2937 100%)',
+              opacity: 0.5,
             }}
           />
         )}
@@ -90,12 +88,15 @@ export function EventTimeline({ events }: EventTimelineProps) {
         {events.map((e, idx) => {
           const isOpen = expanded.has(idx)
           return (
-            <div
+            <motion.div
               key={idx}
+              initial={{ opacity: 0, x: -4 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2, delay: Math.min(idx * 0.02, 0.3) }}
               style={{
                 position: 'relative',
                 paddingLeft: 28,
-                marginBottom: 8,
+                marginBottom: 6,
               }}
             >
               {/* 圆点 */}
@@ -103,13 +104,13 @@ export function EventTimeline({ events }: EventTimelineProps) {
                 style={{
                   position: 'absolute',
                   left: 2,
-                  top: 10,
+                  top: 12,
                   width: 12,
                   height: 12,
                   borderRadius: '50%',
                   background: '#2dd4bf',
                   border: '2px solid #0a0e14',
-                  boxShadow: '0 0 0 1px #374151',
+                  boxShadow: '0 0 0 1px #1f2937, 0 0 8px rgba(45,212,191,0.5)',
                   zIndex: 1,
                 }}
               />
@@ -117,71 +118,108 @@ export function EventTimeline({ events }: EventTimelineProps) {
               <div
                 onClick={() => toggle(idx)}
                 style={{
-                  background: '#1f2937',
+                  background: '#0f1419',
                   border: '1px solid #1f2937',
                   borderRadius: 6,
-                  padding: 8,
+                  padding: 10,
                   cursor: 'pointer',
                   fontSize: 13,
                   lineHeight: 1.5,
+                  transition: 'border-color 0.15s ease, background 0.15s ease',
+                }}
+                onMouseEnter={(ev) => {
+                  (ev.currentTarget as HTMLDivElement).style.borderColor = '#374151'
+                }}
+                onMouseLeave={(ev) => {
+                  (ev.currentTarget as HTMLDivElement).style.borderColor = '#1f2937'
                 }}
               >
                 {/* 摘要行 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ color: '#9ca3af', fontSize: 12, minWidth: 28 }}>
-                    #{idx + 1}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      color: '#6b7280',
+                      fontSize: 11,
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    <Hash size={10} />{idx + 1}
                   </span>
-                  <span style={{ fontWeight: 500, color: '#e5e7eb' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 500, color: '#e5e7eb' }}>
+                    <Bot size={12} style={{ color: '#2dd4bf' }} />
                     {e.agent}
                   </span>
                   <span
                     style={{
-                      fontSize: 11,
+                      fontSize: 10,
                       padding: '1px 6px',
-                      borderRadius: 3,
-                      background: 'rgba(45,212,191,0.15)',
+                      borderRadius: 999,
+                      background: 'rgba(45,212,191,0.12)',
                       color: '#2dd4bf',
+                      border: '1px solid rgba(45,212,191,0.25)',
+                      fontFamily: "'JetBrains Mono', monospace",
                     }}
                   >
                     {e.action}
                   </span>
                   {e.duration != null && (
-                    <span style={{ color: '#9ca3af', fontSize: 12 }}>
-                      {(e.duration * 1000).toFixed(0)}ms
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#6b7280', fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>
+                      <Clock size={10} />{(e.duration * 1000).toFixed(0)}ms
                     </span>
                   )}
                   {e.tokens != null && e.tokens > 0 && (
-                    <span style={{ color: '#9ca3af', fontSize: 12 }}>
-                      {e.tokens} tok
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#6b7280', fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>
+                      <Cpu size={10} />{e.tokens} tok
                     </span>
                   )}
-                  <span style={{ marginLeft: 'auto', color: '#9ca3af', fontSize: 12 }}>
-                    {isOpen ? '收起 ▲' : '展开 ▼'}
+                  {e.cost != null && e.cost > 0 && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#6b7280', fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>
+                      <Coins size={10} />{e.cost.toFixed(4)}
+                    </span>
+                  )}
+                  <span style={{ marginLeft: 'auto', color: '#6b7280', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                    <ChevronDown
+                      size={12}
+                      style={{
+                        transition: 'transform 0.2s ease',
+                        transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      }}
+                    />
                   </span>
                 </div>
                 {/* 展开后的 content */}
-                {isOpen && (
-                  <pre
-                    style={{
-                      margin: '8px 0 0',
-                      padding: 8,
-                      background: '#0a0e14',
-                      border: '1px solid #374151',
-                      borderRadius: 4,
-                      fontSize: 12,
-                      lineHeight: 1.4,
-                      maxHeight: 300,
-                      overflow: 'auto',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      color: '#9ca3af',
-                    }}
-                  >
-                    {e.content || '(空内容)'}
-                  </pre>
-                )}
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.pre
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                      style={{
+                        margin: '8px 0 0',
+                        padding: 10,
+                        background: '#0a0e14',
+                        border: '1px solid #1f2937',
+                        borderRadius: 4,
+                        fontSize: 12,
+                        lineHeight: 1.5,
+                        maxHeight: 300,
+                        overflow: 'auto',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        color: '#9ca3af',
+                        fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace",
+                      }}
+                    >
+                      {e.content || '(空内容)'}
+                    </motion.pre>
+                  )}
+                </AnimatePresence>
               </div>
-            </div>
+            </motion.div>
           )
         })}
       </div>

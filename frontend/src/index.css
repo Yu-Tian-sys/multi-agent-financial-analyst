@@ -1,20 +1,43 @@
 @import "tailwindcss";
 
+/* ============================================================
+   设计 token：深色金融科技风
+   参考 Linear / Vercel / Bloomberg / Raycast
+   ============================================================ */
 :root {
+  /* 背景层级 */
   --bg-primary: #0a0e14;
-  --bg-card: #131820;
+  --bg-card-top: #161b24;
+  --bg-card-bottom: #131820;
   --bg-panel: #1f2937;
+  --bg-inset: #0f1419;
+
+  /* 边框 */
   --border-default: #1f2937;
   --border-strong: #374151;
+  --border-stronger: #4b5563;
+
+  /* 文字 */
   --text-primary: #e5e7eb;
   --text-secondary: #9ca3af;
   --text-muted: #6b7280;
+
+  /* 强调（青色金融科技） */
   --accent: #2dd4bf;
+  --accent-bright: #22d3ee;
   --accent-hover: #14b8a6;
+  --accent-glow: rgba(45, 212, 191, 0.15);
+
+  /* 状态 */
   --success: #22c55e;
   --error: #ef4444;
   --warning: #f59e0b;
   --info: #3b82f6;
+
+  /* 圆角 */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 }
 
 html, body, #root {
@@ -24,30 +47,74 @@ html, body, #root {
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
   font-feature-settings: 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* 数字和代码用等宽字体 */
+/* ============================================================
+   背景光晕：页面顶部左青右紫两团极淡氛围
+   ============================================================ */
+#root {
+  position: relative;
+}
+#root::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 0%, rgba(45, 212, 191, 0.08), transparent 60%),
+    radial-gradient(ellipse 50% 30% at 80% 10%, rgba(139, 92, 246, 0.06), transparent 60%);
+}
+/* 页面主内容必须在光晕之上 */
+#root > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* 数字与代码统一等宽 */
 code, pre, .mono, [data-mono] {
-  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-family: 'JetBrains Mono', 'Consolas', 'Cascadia Code', monospace;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
-/* 深色滚动条 */
+/* 深色滚动条（精细） */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--border-stronger); background-clip: content-box; }
 
-/* 卡片：深色金融科技风 */
+/* 文本选中色 */
+::selection {
+  background: rgba(45, 212, 191, 0.25);
+  color: #ffffff;
+}
+
+/* ============================================================
+   卡片：深色金融科技风
+   - 渐变底 + 微阴影 + 顶部青色高光
+   ============================================================ */
 .card {
   position: relative;
-  background: linear-gradient(180deg, #161b24 0%, #131820 100%);
-  border: 1px solid #1f2937;
-  border-radius: 12px;
+  background: linear-gradient(180deg, var(--bg-card-top) 0%, var(--bg-card-bottom) 100%);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
   padding: 20px;
   margin-bottom: 20px;
   overflow: hidden;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 /* 卡片顶部青色高光线 */
@@ -62,7 +129,160 @@ code, pre, .mono, [data-mono] {
   pointer-events: none;
 }
 
-/* 全局间距 */
+/* 嵌套面板（卡片内部的小容器） */
+.panel {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+/* ============================================================
+   按钮：CTA + 次级
+   ============================================================ */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-hover) 100%);
+  color: #0a0e14;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: transform 0.1s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.15) inset, 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2) inset, 0 4px 12px rgba(45, 212, 191, 0.25);
+}
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  filter: brightness(0.96);
+}
+.btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  filter: grayscale(0.3);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--border-stronger);
+  color: var(--text-primary);
+  background: #232d3a;
+}
+.btn-ghost:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn-ghost:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ============================================================
+   输入框：focus 青色光晕
+   ============================================================ */
+.input {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.input::placeholder {
+  color: var(--text-muted);
+}
+.input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   全局间距
+   ============================================================ */
 body {
   line-height: 1.6;
 }
+
+/* ============================================================
+   动画：状态点 pulse
+   ============================================================ */
+@keyframes pulse-online {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+  50% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+}
+@keyframes pulse-error {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+}
+.status-dot-online { animation: pulse-online 2s ease-in-out infinite; }
+.status-dot-offline { animation: pulse-error 2s ease-in-out infinite; }
+
+/* ============================================================
+   大数字 stat（JetBrains Mono + 青色）
+   ============================================================ */
+.stat-value {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* 数字发光：电子屏辉光 */
+.stat-glow {
+  color: #2dd4bf;
+  text-shadow: 0 0 20px rgba(45, 212, 191, 0.5), 0 0 40px rgba(45, 212, 191, 0.2);
+}
+
+/* ============================================================
+   顶部进度线（indeterminate sliding bar）
+   ============================================================ */
+@keyframes progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ============================================================
+   卡片完成时闪光（一次性 1.2s）
+   ============================================================ */
+@keyframes flash-border {
+  0% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.6), 0 1px 2px rgba(0, 0, 0, 0.3); }
+  50% { box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.15), 0 0 24px rgba(45, 212, 191, 0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0), 0 1px 2px rgba(0, 0, 0, 0.3); }
+}
+.card-flash {
+  animation: flash-border 1.2s ease-out 1;
+}
+
+/* ============================================================
+   spin 兜底（Tailwind v4 自带 animate-spin，这里是 fallback）
+   ============================================================ */
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-spin { animation: spin 1s linear infinite; }
