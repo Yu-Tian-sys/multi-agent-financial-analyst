@@ -29,8 +29,13 @@ class Settings(BaseSettings):
     max_steps: int = 20                                           # Agent 最大步数
     timeout_seconds: int = 600                                    # 任务超时时间（秒）
     daily_cost_limit: float = 10.0                                # 每用户每日成本上限（元）
-    rate_limit_per_minute: int = 5                                # 每用户每分钟请求上限
-    
+    rate_limit_per_minute: int = 5                               # 每用户每分钟请求上限
+
+    # 模型路由
+    model_cheap: str = "deepseek-chat"                            # 便宜层模型（分类/规划/辩论/合规）
+    model_expensive: str = "deepseek-reasoner"                    # 昂贵层模型（报告撰写/主持人裁决）
+    llm_mock: bool = False                                        # mock 模式开关（True 时不调真实 API）
+
     class Config:
         env_file = ".env"
         case_sensitive = False
