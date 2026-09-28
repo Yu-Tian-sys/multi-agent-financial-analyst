@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
+  Sparkles,
 } from 'lucide-react'
 import { useCompareTask, type CompareTaskHook } from '../hooks/useCompareTask'
 
@@ -258,6 +259,43 @@ export function CompareView({ onBack }: CompareViewProps) {
   const left = useCompareTask()
   const right = useCompareTask()
 
+  // AI 对比结论相关 state
+  const [compareResult, setCompareResult] = useState<{ summary: string; tokens: number; cost: number } | null>(null)
+  const [compareLoading, setCompareLoading] = useState<boolean>(false)
+  const [compareError, setCompareError] = useState<string>('')
+
+  // 生成对比结论：两边都完成后可调，POST /api/compare 让 LLM 对比两份报告
+  async function generateCompare(): Promise<void> {
+    if (!left.taskId || !right.taskId) return
+    setCompareLoading(true)
+    setCompareError('')
+    try {
+      const resp = await fetch('/api/compare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task_id_a: left.taskId,
+          task_id_b: right.taskId,
+        }),
+      })
+      if (!resp.ok) {
+        const msg = `HTTP ${resp.status}`
+        setCompareError(`生成对比结论失败：${msg}`)
+        return
+      }
+      const data = await resp.json()
+      setCompareResult(data)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setCompareError(`生成对比结论失败：${msg}`)
+    } finally {
+      setCompareLoading(false)
+    }
+  }
+
+  // 仅当两边都完成时才显示对比结论区
+  const bothCompleted = left.task?.status === 'completed' && right.task?.status === 'completed'
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 24, gap: 16 }}>
       {/* 顶部标题栏 */}
@@ -276,6 +314,61 @@ export function CompareView({ onBack }: CompareViewProps) {
         <ComparePanel hook={left} label="股票 A" placeholder="例如 AAPL" />
         <ComparePanel hook={right} label="股票 B" placeholder="例如 TSLA" />
       </div>
+
+      {/* AI 对比结论区：仅当两边都完成时显示 */}
+      {bothCompleted && (
+        <div style={{ marginTop: 16, padding: 16, border: '1px solid #21262d', borderRadius: 8, background: '#0d1117' }}>
+          {/* 顶部标题 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Sparkles size={16} style={{ color: '#58a6ff' }} />
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>AI 对比结论</span>
+          </div>
+
+          {/* 无结果且不在加载：显示生成按钮 */}
+          {!compareResult && !compareLoading && (
+            <button onClick={generateCompare} className="btn-primary" style={{ fontSize: 13, padding: '6px 12px' }}>
+              <Sparkles size={13} /> 生成对比结论
+            </button>
+          )}
+
+          {/* 加载中：脉动点 + 提示 */}
+          {compareLoading && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="dot-pulse" style={{ width: 8, height: 8, borderRadius: '50%', background: '#58a6ff', flexShrink: 0 }} />
+              <span style={{ fontSize: 14, color: '#8b949e' }}>AI 正在对比两份报告...</span>
+            </div>
+          )}
+
+          {/* 有结果：显示总结 + tokens/cost + 重新生成 */}
+          {compareResult && !compareLoading && (
+            <div>
+              <div style={{ fontSize: 14, lineHeight: 1.7, color: '#e6edf3', whiteSpace: 'pre-wrap' }}>
+                {compareResult.summary}
+              </div>
+              <div style={{ fontSize: 12, color: '#6e7681', fontFamily: "'JetBrains Mono', 'Consolas', monospace", marginTop: 8 }}>
+                本次对比：{compareResult.tokens} tokens · {compareResult.cost} 元
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <button onClick={generateCompare} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+                  <RefreshCw size={13} /> 重新生成
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 错误信息 */}
+          {compareError && !compareLoading && (
+            <div>
+              <div style={{ fontSize: 13, color: '#f85149', whiteSpace: 'pre-wrap' }}>{compareError}</div>
+              <div style={{ marginTop: 8 }}>
+                <button onClick={generateCompare} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+                  <RefreshCw size={13} /> 重试
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

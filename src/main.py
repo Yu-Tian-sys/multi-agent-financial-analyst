@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from src.config import settings
 from src.db import Database
 from src.graph import run_pipeline
+from src.agents.compare_summarizer import summarize
 
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
@@ -54,6 +55,19 @@ class AnalyzeResponse(BaseModel):
     task_id: str
     status: str
     message: str
+
+
+class CompareRequest(BaseModel):
+    """对比请求"""
+    task_id_a: str
+    task_id_b: str
+
+
+class CompareResponse(BaseModel):
+    """对比响应"""
+    summary: str
+    tokens: int
+    cost: float
 
 
 # ========================================
@@ -183,6 +197,16 @@ def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks):
         status="pending",
         message="任务已提交，请通过 GET /task/{task_id} 查询进度"
     )
+
+
+@app.post("/compare", response_model=CompareResponse)
+def compare(req: CompareRequest):
+    """把两个任务的报告交给 LLM，返回对比总结。"""
+    try:
+        result = summarize(req.task_id_a, req.task_id_b)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return CompareResponse(**result)
 
 
 @app.get("/task/{task_id}")
