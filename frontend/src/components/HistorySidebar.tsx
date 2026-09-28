@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, GitCompare, Plus } from 'lucide-react'
+import { Activity, GitCompare, Plus, Trash2 } from 'lucide-react'
 import { StatusDot } from './StatusDot'
 
 // 历史任务条目（GET /api/tasks 返回的单条结构）
@@ -21,6 +21,8 @@ interface HistorySidebarProps {
   onNew: () => void
   /** 点击「对比模式」时回调 */
   onCompare: () => void
+  /** 点击删除按钮时回调 */
+  onDelete: (taskId: string) => void
   /** 变化时重新拉取列表 */
   refreshTrigger: number
 }
@@ -47,9 +49,11 @@ function statusColor(s: string): string {
   return '#6e7681'
 }
 
-export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, refreshTrigger }: HistorySidebarProps) {
+export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, onDelete, refreshTrigger }: HistorySidebarProps) {
   const [tasks, setTasks] = useState<HistoryTask[]>([])
   const [loading, setLoading] = useState(false)
+  // 当前悬停的任务 id，只有悬停时才显示删除按钮
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
 
   // refreshTrigger 变化时拉取历史列表，5 秒超时，失败静默
   useEffect(() => {
@@ -116,6 +120,8 @@ export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, refr
           <div
             key={t.task_id}
             onClick={() => onSelect(t.task_id)}
+            onMouseEnter={() => setHoveredId(t.task_id)}
+            onMouseLeave={() => setHoveredId(null)}
             className={t.task_id === currentTaskId ? 'history-item active' : 'history-item'}
           >
             <div
@@ -142,6 +148,32 @@ export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, refr
             <span style={{ fontSize: 12, color: '#6e7681', flexShrink: 0 }}>
               {formatRelativeTime(t.created_at)}
             </span>
+            {hoveredId === t.task_id && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (window.confirm('确定删除这条分析记录吗？')) {
+                    onDelete(t.task_id)
+                  }
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                  marginLeft: 4,
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: '#6e7681',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#f85149' }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = '#6e7681' }}
+                title="删除"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
           </div>
         ))}
       </div>

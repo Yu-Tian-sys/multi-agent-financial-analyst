@@ -195,6 +195,16 @@ class Database:
         )
         return [dict(row) for row in cursor.fetchall()]
 
+    def delete_task(self, task_id: str) -> bool:
+        """删除指定任务。返回 True 表示删掉了，False 表示该任务不存在。
+
+        Args:
+            task_id: 任务 ID
+        """
+        cursor = self.conn.execute("DELETE FROM tasks WHERE task_id = ?", (task_id,))
+        self.conn.commit()
+        return cursor.rowcount > 0
+
     def update_task(self, task_id: str, **kwargs) -> None:
         """更新任务任意字段，list/dict 自动 json.dumps，自动更新 updated_at"""
         if not kwargs:

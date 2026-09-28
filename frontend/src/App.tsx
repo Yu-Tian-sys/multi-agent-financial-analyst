@@ -230,6 +230,24 @@ function App() {
     reset()
   }
 
+  // 删除历史任务：调 DELETE 接口，成功后刷新列表；若删的是当前任务则清空右侧
+  async function handleDelete(tid: string): Promise<void> {
+    try {
+      const resp = await fetch(`/api/tasks/${encodeURIComponent(tid)}`, { method: 'DELETE' })
+      if (!resp.ok) {
+        setError('删除失败')
+        return
+      }
+      setHistoryRefreshKey((k) => k + 1)
+      if (tid === taskId) {
+        reset()
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(`删除失败：${msg}`)
+    }
+  }
+
   // 加载历史任务：直接展示结果，不走提交、不启动轮询
   async function loadHistory(tid: string): Promise<void> {
     stopPolling()
@@ -318,6 +336,7 @@ function App() {
         onSelect={loadHistory}
         onNew={handleNewChat}
         onCompare={() => setViewMode('compare')}
+        onDelete={handleDelete}
         refreshTrigger={historyRefreshKey}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>

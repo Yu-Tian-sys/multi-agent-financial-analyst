@@ -216,6 +216,15 @@ def list_tasks(limit: int = 50, offset: int = 0):
     return {"tasks": tasks, "count": len(tasks)}
 
 
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: str):
+    """删除指定任务（历史记录）。"""
+    ok = db.delete_task(task_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    return {"ok": True, "task_id": task_id}
+
+
 @app.get("/health")
 def health():
     """健康检查"""
