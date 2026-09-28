@@ -252,8 +252,39 @@ LLM 有随机性，同一标的两次跑可能给出不同风险等级。规则�
 
 - 成本控制（模型路由 + 语义缓存 + 历史压缩）
 - Docker 部署（docker-compose 一键启动）
-- 前端 Dashboard（替代 Mermaid 文本输出）
 
 ## License
 
 MIT
+
+## 前端 Dashboard
+
+提供 Web 界面提交分析任务、查看结果与可观测性数据。
+
+**技术栈**：React + TypeScript + Vite，代码位于 `frontend/`。
+
+**首次使用**：
+
+```bash
+# 1. 装依赖（只首次需要）
+cd frontend && npm install
+
+# 2. 启动后端（前端依赖后端在跑）
+cd .. && python -m uvicorn src.main:app --host 127.0.0.1 --port 8000
+
+# 3. 启动前端
+cd frontend && npm run dev
+```
+
+**访问地址**：http://localhost:5173/（端口被占会自动切换，看终端输出）。
+
+**功能**：
+
+- 提交分析任务（股票代码 / 行业）
+- 实时轮询任务状态（pending → running → completed/failed/rejected）
+- 渲染 Markdown 分析报告（含 GFM 表格）
+- Mermaid Agent 协作流程图（sequenceDiagram）
+- trace 事件时间线（按事件顺序展开/折叠查看 content）
+- 全局指标与成本概览（今日任务数 / 成功率 / 成本 / tokens + 状态分布条形图）
+
+**网络**：前端通过 `vite.config.ts` 的 `/api` 代理转发到 `http://127.0.0.1:8000`，无需配置 CORS。
