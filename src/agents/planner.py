@@ -3,21 +3,11 @@ import logging
 import time
 from typing import Dict, List
 
-from openai import OpenAI
-
 from src.state import FinanceState
 from src.config import settings
+import src.optimization.model_router as router_module
 
 logger = logging.getLogger(__name__)
-
-
-# ========================================
-# LLM 客户端
-# ========================================
-_client = OpenAI(
-    api_key=settings.deepseek_api_key,
-    base_url=settings.deepseek_base_url,
-)
 
 
 # ========================================
@@ -82,43 +72,6 @@ PLAN_PROMPT = """你是一个金融研究任务规划器。
 
 
 # ========================================
-# LLM 调用（带重试）
-# ========================================
-
-def _call_llm(prompt: str, max_retries: int = 2) -> tuple:
-    """
-    调用 LLM，带重试
-
-    Args:
-        prompt: 提示词
-        max_retries: 最大重试次数
-
-    Returns:
-        (文本内容, tokens, cost)
-    """
-    last_error = None
-    for attempt in range(max_retries + 1):
-        try:
-            response = _client.chat.completions.create(
-                model="deepseek-chat",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
-            )
-            content = response.choices[0].message.content
-            tokens = response.usage.total_tokens if response.usage else 0
-            # DeepSeek 约 1 元/百万 token
-            cost = tokens / 1_000_000 * 1.0
-            return content, tokens, cost
-        except Exception as e:
-            last_error = e
-            logger.warning(f"[planner] LLM 调用失败（第 {attempt+1} 次）：{e}")
-            if attempt < max_retries:
-                time.sleep(2 ** attempt)  # 指数退避
-
-    raise last_error
-
-
-# ========================================
 # 公司类型识别
 # ========================================
 
@@ -133,7 +86,7 @@ def classify_company(topic: str) -> tuple:
         (公司类型, tokens, cost)
     """
     prompt = CLASSIFY_PROMPT.format(topic=topic)
-    content, tokens, cost = _call_llm(prompt)
+    content, tokens, cost = router_module.call_llm(prompt, tier="cheap", temperature=0.3, max_retries=2)
     content = content.strip()
 
     # 校验返回值
@@ -162,7 +115,7 @@ def generate_subtasks(topic: str, company_type: str) -> tuple:
     prompt = PLAN_PROMPT.format(topic=topic, company_type=company_type)
 
     for attempt in range(3):
-        content, tokens, cost = _call_llm(prompt, max_retries=0)
+        content, tokens, cost = router_module.call_llm(prompt, tier="cheap", temperature=0.3, max_retries=0)
 
         # 清理 markdown 代码块
         text = content.replace("```json", "").replace("```", "").strip()

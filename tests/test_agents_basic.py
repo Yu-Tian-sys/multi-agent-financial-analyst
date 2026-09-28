@@ -3,6 +3,7 @@ from src.state import create_initial_state
 from src.agents.precheck import precheck_node
 from src.agents.planner import planner_node, classify_company, generate_subtasks, TASK_TEMPLATES
 from src.agents.financial_analyst import financial_analyst_node, _parse_metrics_to_numbers
+import src.optimization.model_router as router_module
 
 
 # ========================================
@@ -46,11 +47,10 @@ def test_precheck_invalid_role():
 
 def test_classify_company_mock(monkeypatch):
     """测试公司类型识别（mock LLM）"""
-    def mock_call_llm(prompt, max_retries=2):
+    def mock_call_llm(prompt, tier="cheap", *, temperature=0.3, max_retries=2):
         return "科技", 100, 0.0001
 
-    import src.agents.planner as planner_module
-    monkeypatch.setattr(planner_module, "_call_llm", mock_call_llm)
+    monkeypatch.setattr(router_module, "call_llm", mock_call_llm)
 
     company_type, tokens, cost = classify_company("AAPL")
     assert company_type == "科技"
@@ -58,11 +58,10 @@ def test_classify_company_mock(monkeypatch):
 
 def test_generate_subtasks_mock(monkeypatch):
     """测试子任务生成（mock LLM 返回合法 JSON）"""
-    def mock_call_llm(prompt, max_retries=0):
+    def mock_call_llm(prompt, tier="cheap", *, temperature=0.3, max_retries=0):
         return '[{"id": 1, "task": "测试任务", "status": "pending"}]', 100, 0.0001
 
-    import src.agents.planner as planner_module
-    monkeypatch.setattr(planner_module, "_call_llm", mock_call_llm)
+    monkeypatch.setattr(router_module, "call_llm", mock_call_llm)
 
     subtasks, tokens, cost = generate_subtasks("AAPL", "科技")
     assert len(subtasks) == 1
@@ -71,11 +70,10 @@ def test_generate_subtasks_mock(monkeypatch):
 
 def test_generate_subtasks_fallback(monkeypatch):
     """测试 JSON 解析失败降级到模板"""
-    def mock_call_llm(prompt, max_retries=0):
+    def mock_call_llm(prompt, tier="cheap", *, temperature=0.3, max_retries=0):
         return "这不是 JSON", 100, 0.0001
 
-    import src.agents.planner as planner_module
-    monkeypatch.setattr(planner_module, "_call_llm", mock_call_llm)
+    monkeypatch.setattr(router_module, "call_llm", mock_call_llm)
 
     subtasks, tokens, cost = generate_subtasks("AAPL", "科技")
     # 降级用模板，应该返回科技类型的 4 个任务
@@ -86,14 +84,13 @@ def test_generate_subtasks_fallback(monkeypatch):
 def test_planner_node_mock(monkeypatch):
     """测试 planner_node（mock LLM）"""
     call_count = [0]
-    def mock_call_llm(prompt, max_retries=2):
+    def mock_call_llm(prompt, tier="cheap", *, temperature=0.3, max_retries=2):
         call_count[0] += 1
         if call_count[0] == 1:
             return "科技", 100, 0.0001
         return '[{"id": 1, "task": "测试任务", "status": "pending"}]', 100, 0.0001
 
-    import src.agents.planner as planner_module
-    monkeypatch.setattr(planner_module, "_call_llm", mock_call_llm)
+    monkeypatch.setattr(router_module, "call_llm", mock_call_llm)
 
     state = create_initial_state("t1", "u1", "user", "AAPL")
     result = planner_node(state)
