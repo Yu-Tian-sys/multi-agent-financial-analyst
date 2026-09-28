@@ -362,7 +362,7 @@ function App() {
           {task.total_steps > 0 && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 4 }}>
-                进度：{task.current_step} / {task.total_steps}（{progressPct}%）
+                进度：{progressPct}%
               </div>
               <div style={{ width: '100%', height: 8, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }}>
                 <div style={{ width: `${progressPct}%`, height: '100%', background: '#2563eb', transition: 'width 0.3s' }} />
