@@ -36,7 +36,7 @@ export function MermaidChart({ chart }: MermaidChartProps) {
     async function render(): Promise<void> {
       try {
         // 初始化 mermaid（幂等，重复调用无害）
-        mermaid.initialize({ startOnLoad: false, theme: 'default' })
+        mermaid.initialize({ startOnLoad: false, theme: 'dark' })
         // 渲染得到 SVG 字符串
         const { svg: svgStr } = await mermaid.render(renderId, chart)
         if (!cancelled) {
@@ -68,10 +68,10 @@ export function MermaidChart({ chart }: MermaidChartProps) {
     <div>
       {error && (
         <div style={{
-          color: '#dc2626',
+          color: '#ef4444',
           fontSize: 13,
           padding: 12,
-          background: '#fef2f2',
+          background: 'rgba(239,68,68,0.1)',
           borderRadius: 6,
           marginBottom: 8,
           whiteSpace: 'pre-wrap',
@@ -81,7 +81,7 @@ export function MermaidChart({ chart }: MermaidChartProps) {
       )}
       <div
         style={{
-          background: 'white',
+          background: '#131820',
           overflow: 'auto',
           minHeight: 200,
           padding: 12,

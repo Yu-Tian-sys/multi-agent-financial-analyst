@@ -126,8 +126,8 @@ export function GlobalMetrics() {
 
   // 状态分布条形图数据
   const statusBars = [
-    { name: 'completed', count: completed, color: '#16a34a' },
-    { name: 'failed', count: failed, color: '#dc2626' },
+    { name: 'completed', count: completed, color: '#22c55e' },
+    { name: 'failed', count: failed, color: '#ef4444' },
     { name: 'running/pending/rejected', count: others, color: '#9ca3af' },
   ].filter((b) => b.count > 0)
   const maxBar = Math.max(1, ...statusBars.map((b) => b.count))
@@ -151,9 +151,9 @@ export function GlobalMetrics() {
           style={{
             padding: '4px 12px',
             fontSize: 12,
-            backgroundColor: state.loading ? '#e5e7eb' : '#f3f4f6',
-            color: '#374151',
-            border: '1px solid #d1d5db',
+            backgroundColor: state.loading ? '#1f2937' : '#1f2937',
+            color: '#9ca3af',
+            border: '1px solid #374151',
             borderRadius: 4,
             cursor: state.loading ? 'not-allowed' : 'pointer',
           }}
@@ -178,15 +178,15 @@ export function GlobalMetrics() {
               flex: 1,
               minWidth: 120,
               padding: 16,
-              background: 'white',
-              border: '1px solid #e5e7eb',
+              background: '#131820',
+              border: '1px solid #1f2937',
               borderRadius: 8,
             }}
           >
-            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
+            <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>
               {card.label}
             </div>
-            <div style={{ fontSize: 20, fontWeight: 600, color: '#111827' }}>
+            <div style={{ fontSize: 20, fontWeight: 600, color: '#e5e7eb' }}>
               {card.value}
             </div>
           </div>
@@ -195,7 +195,7 @@ export function GlobalMetrics() {
 
       {/* 今日状态分布 */}
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>今日状态分布</div>
+        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8, color: '#e5e7eb' }}>今日状态分布</div>
         {statusBars.length === 0 ? (
           <div style={{ color: '#9ca3af', fontSize: 13, padding: 8 }}>暂无数据</div>
         ) : (
@@ -210,8 +210,8 @@ export function GlobalMetrics() {
                 fontSize: 13,
               }}
             >
-              <span style={{ width: 200, color: '#374151' }}>{bar.name}</span>
-              <div style={{ flex: 1, height: 12, background: '#f3f4f6', borderRadius: 6, overflow: 'hidden' }}>
+              <span style={{ width: 200, color: '#9ca3af' }}>{bar.name}</span>
+              <div style={{ flex: 1, height: 12, background: '#1f2937', borderRadius: 6, overflow: 'hidden' }}>
                 <div
                   style={{
                     width: `${(bar.count / maxBar) * 100}%`,
@@ -221,7 +221,7 @@ export function GlobalMetrics() {
                   }}
                 />
               </div>
-              <span style={{ width: 30, textAlign: 'right', color: '#111827', fontWeight: 500 }}>
+              <span style={{ width: 30, textAlign: 'right', color: '#e5e7eb', fontWeight: 500 }}>
                 {bar.count}
               </span>
             </div>
@@ -233,17 +233,17 @@ export function GlobalMetrics() {
       {(state.metrics && !state.metrics.ok) || (state.cost && !state.cost.ok) || (state.overview && !state.overview.ok) ? (
         <div style={{ marginBottom: 12 }}>
           {state.metrics && !state.metrics.ok && (
-            <div style={{ padding: 6, background: '#fef2f2', color: '#dc2626', borderRadius: 4, fontSize: 12, marginBottom: 4 }}>
+            <div style={{ padding: 6, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 4, fontSize: 12, marginBottom: 4 }}>
               /metrics 加载失败：{state.metrics.error}
             </div>
           )}
           {state.cost && !state.cost.ok && (
-            <div style={{ padding: 6, background: '#fef2f2', color: '#dc2626', borderRadius: 4, fontSize: 12, marginBottom: 4 }}>
+            <div style={{ padding: 6, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 4, fontSize: 12, marginBottom: 4 }}>
               /cost 加载失败：{state.cost.error}
             </div>
           )}
           {state.overview && !state.overview.ok && (
-            <div style={{ padding: 6, background: '#fef2f2', color: '#dc2626', borderRadius: 4, fontSize: 12, marginBottom: 4 }}>
+            <div style={{ padding: 6, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 4, fontSize: 12, marginBottom: 4 }}>
               /overview 加载失败：{state.overview.error}
             </div>
           )}

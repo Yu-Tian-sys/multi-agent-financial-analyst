@@ -57,13 +57,13 @@ export function HealthCheck() {
 
   // 根据状态选颜色
   const color =
-    result.status === 'success' ? '#16a34a' :
-    result.status === 'error' ? '#dc2626' :
-    '#374151'
+    result.status === 'success' ? '#22c55e' :
+    result.status === 'error' ? '#ef4444' :
+    '#9ca3af'
 
   return (
-    <div style={{ marginTop: 32, padding: 16, background: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb' }}>
-      <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: '#374151' }}>
+    <div style={{ marginTop: 32, padding: 16, background: '#1f2937', borderRadius: 8, border: '1px solid #1f2937' }}>
+      <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: '#9ca3af' }}>
         后端健康检查（参考）
       </h3>
       <button
@@ -72,8 +72,8 @@ export function HealthCheck() {
         style={{
           padding: '6px 12px',
           fontSize: 13,
-          backgroundColor: '#2563eb',
-          color: 'white',
+          backgroundColor: '#2dd4bf',
+          color: '#0a0e14',
           border: 'none',
           borderRadius: 6,
           cursor: result.status === 'loading' ? 'not-allowed' : 'pointer',
@@ -89,12 +89,12 @@ export function HealthCheck() {
             {result.status === 'success' ? '✓ 后端连接成功' : '✗ 后端连接失败'}
           </div>
           <pre style={{
-            background: '#f3f4f6',
+            background: '#1f2937',
             padding: 12,
             borderRadius: 6,
             overflow: 'auto',
             fontSize: 13,
-            color: '#111827',
+            color: '#e5e7eb',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-all',
             margin: 0,

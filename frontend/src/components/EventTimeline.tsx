@@ -67,7 +67,7 @@ export function EventTimeline({ events }: EventTimelineProps) {
   return (
     <div style={containerStyle}>
       {/* 顶部统计 */}
-      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
+      <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 12 }}>
         共 {events.length} 个事件
       </div>
 
@@ -82,7 +82,7 @@ export function EventTimeline({ events }: EventTimelineProps) {
               top: 20,
               bottom: 20,
               width: 2,
-              background: '#d1d5db',
+              background: '#374151',
             }}
           />
         )}
@@ -107,9 +107,9 @@ export function EventTimeline({ events }: EventTimelineProps) {
                   width: 12,
                   height: 12,
                   borderRadius: '50%',
-                  background: '#2563eb',
-                  border: '2px solid white',
-                  boxShadow: '0 0 0 1px #d1d5db',
+                  background: '#2dd4bf',
+                  border: '2px solid #0a0e14',
+                  boxShadow: '0 0 0 1px #374151',
                   zIndex: 1,
                 }}
               />
@@ -117,8 +117,8 @@ export function EventTimeline({ events }: EventTimelineProps) {
               <div
                 onClick={() => toggle(idx)}
                 style={{
-                  background: '#f9fafb',
-                  border: '1px solid #e5e7eb',
+                  background: '#1f2937',
+                  border: '1px solid #1f2937',
                   borderRadius: 6,
                   padding: 8,
                   cursor: 'pointer',
@@ -131,7 +131,7 @@ export function EventTimeline({ events }: EventTimelineProps) {
                   <span style={{ color: '#9ca3af', fontSize: 12, minWidth: 28 }}>
                     #{idx + 1}
                   </span>
-                  <span style={{ fontWeight: 500, color: '#111827' }}>
+                  <span style={{ fontWeight: 500, color: '#e5e7eb' }}>
                     {e.agent}
                   </span>
                   <span
@@ -139,19 +139,19 @@ export function EventTimeline({ events }: EventTimelineProps) {
                       fontSize: 11,
                       padding: '1px 6px',
                       borderRadius: 3,
-                      background: '#e0e7ff',
-                      color: '#3730a3',
+                      background: 'rgba(45,212,191,0.15)',
+                      color: '#2dd4bf',
                     }}
                   >
                     {e.action}
                   </span>
                   {e.duration != null && (
-                    <span style={{ color: '#6b7280', fontSize: 12 }}>
+                    <span style={{ color: '#9ca3af', fontSize: 12 }}>
                       {(e.duration * 1000).toFixed(0)}ms
                     </span>
                   )}
                   {e.tokens != null && e.tokens > 0 && (
-                    <span style={{ color: '#6b7280', fontSize: 12 }}>
+                    <span style={{ color: '#9ca3af', fontSize: 12 }}>
                       {e.tokens} tok
                     </span>
                   )}
@@ -165,8 +165,8 @@ export function EventTimeline({ events }: EventTimelineProps) {
                     style={{
                       margin: '8px 0 0',
                       padding: 8,
-                      background: 'white',
-                      border: '1px solid #e5e7eb',
+                      background: '#0a0e14',
+                      border: '1px solid #374151',
                       borderRadius: 4,
                       fontSize: 12,
                       lineHeight: 1.4,
@@ -174,7 +174,7 @@ export function EventTimeline({ events }: EventTimelineProps) {
                       overflow: 'auto',
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word',
-                      color: '#374151',
+                      color: '#9ca3af',
                     }}
                   >
                     {e.content || '(空内容)'}

@@ -235,10 +235,10 @@ function App() {
 
   // 状态对应的颜色和文案
   const statusColor =
-    task?.status === 'completed' ? '#16a34a' :
-    task?.status === 'failed' ? '#dc2626' :
-    task?.status === 'rejected' ? '#ea580c' :
-    '#2563eb'
+    task?.status === 'completed' ? '#22c55e' :
+    task?.status === 'failed' ? '#ef4444' :
+    task?.status === 'rejected' ? '#f59e0b' :
+    '#2dd4bf'
   const statusText =
     task?.status === 'pending' ? '等待中（pending）' :
     task?.status === 'running' ? '分析中（running）' :
@@ -256,7 +256,7 @@ function App() {
   const submitDisabled = submitting || !topic.trim()
 
   return (
-    <div style={{ maxWidth: 720, margin: '40px auto', padding: 24, fontFamily: 'system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif', color: '#111827' }}>
+    <div style={{ maxWidth: 720, margin: '40px auto', padding: 24, fontFamily: 'system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif', color: '#e5e7eb' }}>
       {/* 全局样式：Markdown 报告渲染样式（限定在 .markdown-body 内） */}
       <style>{`
         .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
@@ -272,26 +272,26 @@ function App() {
         .markdown-body ul, .markdown-body ol { margin: 8px 0; padding-left: 24px; }
         .markdown-body li { margin: 4px 0; }
         .markdown-body table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-        .markdown-body th, .markdown-body td { border: 1px solid #d1d5db; padding: 6px 10px; text-align: left; font-size: 13px; }
-        .markdown-body th { background: #f3f4f6; font-weight: 600; }
-        .markdown-body code { background: #f3f4f6; padding: 2px 4px; border-radius: 3px; font-size: 13px; font-family: ui-monospace, "Cascadia Code", "Microsoft YaHei", monospace; }
-        .markdown-body pre { background: #f3f4f6; padding: 12px; border-radius: 6px; overflow: auto; margin: 8px 0; }
+        .markdown-body th, .markdown-body td { border: 1px solid #374151; padding: 6px 10px; text-align: left; font-size: 13px; }
+        .markdown-body th { background: #1f2937; font-weight: 600; }
+        .markdown-body code { background: #1f2937; padding: 2px 4px; border-radius: 3px; font-size: 13px; font-family: ui-monospace, "Cascadia Code", "Microsoft YaHei", monospace; }
+        .markdown-body pre { background: #1f2937; padding: 12px; border-radius: 6px; overflow: auto; margin: 8px 0; }
         .markdown-body pre code { background: transparent; padding: 0; font-size: 13px; }
-        .markdown-body blockquote { border-left: 3px solid #d1d5db; padding-left: 12px; color: #6b7280; margin: 8px 0; }
-        .markdown-body a { color: #2563eb; text-decoration: underline; }
-        .markdown-body hr { border: none; border-top: 1px solid #e5e7eb; margin: 16px 0; }
+        .markdown-body blockquote { border-left: 3px solid #4b5563; padding-left: 12px; color: #9ca3af; margin: 8px 0; }
+        .markdown-body a { color: #2dd4bf; text-decoration: underline; }
+        .markdown-body hr { border: none; border-top: 1px solid #374151; margin: 16px 0; }
         .markdown-body img { max-width: 100%; }
       `}</style>
       {/* 第 1 块：标题 */}
       <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
         多 Agent 金融分析 Dashboard
       </h1>
-      <p style={{ color: '#6b7280', marginBottom: 24, fontSize: 14 }}>
+      <p style={{ color: '#9ca3af', marginBottom: 24, fontSize: 14 }}>
         后端地址：http://127.0.0.1:8000
       </p>
 
       {/* 第 2 块：提交表单 */}
-      <div style={{ padding: 16, background: 'white', borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 16 }}>
+      <div style={{ padding: 16, background: '#131820', borderRadius: 8, border: '1px solid #1f2937', marginBottom: 16 }}>
         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
           股票代码或行业名称
         </label>
@@ -305,10 +305,12 @@ function App() {
             width: '100%',
             padding: '8px 12px',
             fontSize: 14,
-            border: '1px solid #d1d5db',
+            border: '1px solid #374151',
             borderRadius: 6,
             boxSizing: 'border-box',
             outline: 'none',
+            background: '#0f1419',
+            color: '#e5e7eb',
           }}
         />
         <button
@@ -318,8 +320,8 @@ function App() {
             marginTop: 12,
             padding: '8px 16px',
             fontSize: 14,
-            backgroundColor: '#2563eb',
-            color: 'white',
+            backgroundColor: '#2dd4bf',
+            color: '#0a0e14',
             border: 'none',
             borderRadius: 6,
             cursor: submitDisabled ? 'not-allowed' : 'pointer',
@@ -330,19 +332,19 @@ function App() {
         </button>
         {/* 提交后的 task_id */}
         {taskId && (
-          <div style={{ marginTop: 12, fontSize: 13, color: '#6b7280' }}>
-            task_id: <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4, color: '#111827' }}>{taskId}</code>
+          <div style={{ marginTop: 12, fontSize: 13, color: '#9ca3af' }}>
+            task_id: <code style={{ background: '#1f2937', padding: '2px 6px', borderRadius: 4, color: '#e5e7eb' }}>{taskId}</code>
           </div>
         )}
         {/* 错误信息（红色） */}
         {error && !pollTimedOut && (
-          <div style={{ marginTop: 12, padding: 8, background: '#fef2f2', color: '#dc2626', borderRadius: 6, fontSize: 13, whiteSpace: 'pre-wrap' }}>
+          <div style={{ marginTop: 12, padding: 8, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 6, fontSize: 13, whiteSpace: 'pre-wrap' }}>
             {error}
           </div>
         )}
         {/* 轮询超时提示（橙色） */}
         {pollTimedOut && (
-          <div style={{ marginTop: 12, padding: 8, background: '#fffbeb', color: '#92400e', borderRadius: 6, fontSize: 13 }}>
+          <div style={{ marginTop: 12, padding: 8, background: 'rgba(245,158,11,0.1)', color: '#f59e0b', borderRadius: 6, fontSize: 13 }}>
             {error}
           </div>
         )}
@@ -350,7 +352,7 @@ function App() {
 
       {/* 第 3 块：任务状态 */}
       {task && (
-        <div style={{ padding: 16, background: 'white', borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 16 }}>
+        <div style={{ padding: 16, background: '#131820', borderRadius: 8, border: '1px solid #1f2937', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
             任务状态
           </div>
@@ -361,32 +363,32 @@ function App() {
           {/* 进度条 */}
           {task.total_steps > 0 && (
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 4 }}>
+              <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: 4 }}>
                 进度：{progressPct}%
               </div>
-              <div style={{ width: '100%', height: 8, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ width: `${progressPct}%`, height: '100%', background: '#2563eb', transition: 'width 0.3s' }} />
+              <div style={{ width: '100%', height: 8, background: '#1f2937', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ width: `${progressPct}%`, height: '100%', background: '#2dd4bf', transition: 'width 0.3s' }} />
               </div>
             </div>
           )}
 
           {/* 完成时显示 token 和成本 */}
           {task.status === 'completed' && (
-            <div style={{ fontSize: 13, color: '#374151' }}>
+            <div style={{ fontSize: 13, color: '#9ca3af' }}>
               总 tokens：<b>{task.total_tokens}</b>，总成本：<b>{task.total_cost}</b> 元
             </div>
           )}
 
           {/* 失败时显示错误 */}
           {task.status === 'failed' && task.error && (
-            <div style={{ marginTop: 8, padding: 8, background: '#fef2f2', color: '#dc2626', borderRadius: 6, fontSize: 13, whiteSpace: 'pre-wrap' }}>
+            <div style={{ marginTop: 8, padding: 8, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 6, fontSize: 13, whiteSpace: 'pre-wrap' }}>
               {task.error}
             </div>
           )}
 
           {/* 被拒绝时显示原因 */}
           {task.status === 'rejected' && (
-            <div style={{ marginTop: 8, padding: 8, background: '#fff7ed', color: '#9a3412', borderRadius: 6, fontSize: 13, whiteSpace: 'pre-wrap' }}>
+            <div style={{ marginTop: 8, padding: 8, background: 'rgba(245,158,11,0.1)', color: '#f59e0b', borderRadius: 6, fontSize: 13, whiteSpace: 'pre-wrap' }}>
               {task.error || '任务在合规预检阶段被拒绝（可能因权限/限流/成本熔断）'}
             </div>
           )}
@@ -398,9 +400,9 @@ function App() {
               marginTop: 16,
               padding: '6px 12px',
               fontSize: 13,
-              backgroundColor: '#f3f4f6',
-              color: '#374151',
-              border: '1px solid #d1d5db',
+              backgroundColor: '#1f2937',
+              color: '#9ca3af',
+              border: '1px solid #374151',
               borderRadius: 6,
               cursor: 'pointer',
             }}
@@ -412,20 +414,20 @@ function App() {
 
       {/* 第 3.5 块：分析报告（仅 completed 时显示） */}
       {task?.status === 'completed' && task.final_report && (
-        <div style={{ padding: 16, background: 'white', borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 16 }}>
+        <div style={{ padding: 16, background: '#131820', borderRadius: 8, border: '1px solid #1f2937', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
             分析报告
           </div>
           <div className="markdown-body" style={{
-            background: 'white',
+            background: '#131820',
             borderRadius: 8,
-            border: '1px solid #e5e7eb',
+            border: '1px solid #1f2937',
             padding: 20,
             maxHeight: 600,
             overflow: 'auto',
             fontSize: 14,
             lineHeight: 1.7,
-            color: '#111827',
+            color: '#e5e7eb',
           }}>
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {task.final_report}
@@ -436,12 +438,12 @@ function App() {
 
       {/* 第 3.7 块：Agent 协作流程（仅 completed 时显示） */}
       {task?.status === 'completed' && (
-        <div style={{ padding: 16, background: 'white', borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 16 }}>
+        <div style={{ padding: 16, background: '#131820', borderRadius: 8, border: '1px solid #1f2937', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
             Agent 协作流程
           </div>
           {traceError && (
-            <div style={{ padding: 8, background: '#fef2f2', color: '#dc2626', borderRadius: 6, fontSize: 13, marginBottom: 12, whiteSpace: 'pre-wrap' }}>
+            <div style={{ padding: 8, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 6, fontSize: 13, marginBottom: 12, whiteSpace: 'pre-wrap' }}>
               {traceError}
             </div>
           )}
@@ -451,12 +453,12 @@ function App() {
 
       {/* 第 3.8 块：事件时间线（仅 completed 时显示） */}
       {task?.status === 'completed' && (
-        <div style={{ padding: 16, background: 'white', borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 16 }}>
+        <div style={{ padding: 16, background: '#131820', borderRadius: 8, border: '1px solid #1f2937', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
             事件时间线
           </div>
           {traceError && (
-            <div style={{ padding: 8, background: '#fef2f2', color: '#dc2626', borderRadius: 6, fontSize: 13, marginBottom: 12, whiteSpace: 'pre-wrap' }}>
+            <div style={{ padding: 8, background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 6, fontSize: 13, marginBottom: 12, whiteSpace: 'pre-wrap' }}>
               {traceError}
             </div>
           )}
@@ -468,7 +470,7 @@ function App() {
       <HealthCheck />
 
       {/* 第 5 块：全局指标 + 成本概览（始终显示） */}
-      <div style={{ padding: 16, background: 'white', borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 16 }}>
+      <div style={{ padding: 16, background: '#131820', borderRadius: 8, border: '1px solid #1f2937', marginBottom: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
           全局指标
         </div>
