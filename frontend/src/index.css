@@ -37,3 +37,27 @@ code, pre, .mono, [data-mono] {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+/* 卡片：深色金融科技风 */
+.card {
+  position: relative;
+  background: linear-gradient(180deg, #161b24 0%, #131820 100%);
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* 卡片顶部青色高光线 */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 20px;
+  right: 20px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.4), transparent);
+  pointer-events: none;
+}

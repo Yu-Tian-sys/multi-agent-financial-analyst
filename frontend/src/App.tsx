@@ -256,7 +256,7 @@ function App() {
   const submitDisabled = submitting || !topic.trim()
 
   return (
-    <div style={{ maxWidth: 720, margin: '40px auto', padding: 24, fontFamily: 'system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif', color: '#e5e7eb' }}>
+    <div style={{ maxWidth: 960, margin: '40px auto', padding: 24, fontFamily: 'system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif', color: '#e5e7eb' }}>
       {/* 全局样式：Markdown 报告渲染样式（限定在 .markdown-body 内） */}
       <style>{`
         .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
@@ -283,15 +283,15 @@ function App() {
         .markdown-body img { max-width: 100%; }
       `}</style>
       {/* 第 1 块：标题 */}
-      <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
+      <h1 style={{ fontSize: 28, fontWeight: 600, marginBottom: 4 }}>
         多 Agent 金融分析 Dashboard
       </h1>
-      <p style={{ color: '#9ca3af', marginBottom: 24, fontSize: 14 }}>
+      <p style={{ color: '#9ca3af', marginBottom: 24, fontSize: 15 }}>
         后端地址：http://127.0.0.1:8000
       </p>
 
       {/* 第 2 块：提交表单 */}
-      <div style={{ padding: 16, background: '#131820', borderRadius: 8, border: '1px solid #1f2937', marginBottom: 16 }}>
+      <div className="card">
         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
           股票代码或行业名称
         </label>
@@ -352,7 +352,7 @@ function App() {
 
       {/* 第 3 块：任务状态 */}
       {task && (
-        <div style={{ padding: 16, background: '#131820', borderRadius: 8, border: '1px solid #1f2937', marginBottom: 16 }}>
+        <div className="card">
           <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
             任务状态
           </div>
@@ -414,7 +414,7 @@ function App() {
 
       {/* 第 3.5 块：分析报告（仅 completed 时显示） */}
       {task?.status === 'completed' && task.final_report && (
-        <div style={{ padding: 16, background: '#131820', borderRadius: 8, border: '1px solid #1f2937', marginBottom: 16 }}>
+        <div className="card">
           <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
             分析报告
           </div>
@@ -438,7 +438,7 @@ function App() {
 
       {/* 第 3.7 块：Agent 协作流程（仅 completed 时显示） */}
       {task?.status === 'completed' && (
-        <div style={{ padding: 16, background: '#131820', borderRadius: 8, border: '1px solid #1f2937', marginBottom: 16 }}>
+        <div className="card">
           <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
             Agent 协作流程
           </div>
@@ -453,7 +453,7 @@ function App() {
 
       {/* 第 3.8 块：事件时间线（仅 completed 时显示） */}
       {task?.status === 'completed' && (
-        <div style={{ padding: 16, background: '#131820', borderRadius: 8, border: '1px solid #1f2937', marginBottom: 16 }}>
+        <div className="card">
           <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
             事件时间线
           </div>
@@ -470,7 +470,7 @@ function App() {
       <HealthCheck />
 
       {/* 第 5 块：全局指标 + 成本概览（始终显示） */}
-      <div style={{ padding: 16, background: '#131820', borderRadius: 8, border: '1px solid #1f2937', marginBottom: 16 }}>
+      <div className="card">
         <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
           全局指标
         </div>
