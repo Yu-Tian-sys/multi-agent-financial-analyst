@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { EventTimeline, type TraceEvent } from './components/EventTimeline'
 import { HistorySidebar } from './components/HistorySidebar'
+import { CompareView } from './components/CompareView'
 import { ErrorBanner, WarningBanner } from './components/ui'
 
 // 任务状态枚举
@@ -77,6 +78,8 @@ function App() {
   const [timelineOpen, setTimelineOpen] = useState<boolean>(false)
   // 历史列表刷新触发器（变化时 HistorySidebar 重新拉 /api/tasks）
   const [historyRefreshKey, setHistoryRefreshKey] = useState<number>(0)
+  // 视图模式：对话 vs 对比
+  const [viewMode, setViewMode] = useState<'chat' | 'compare'>('chat')
 
   const pollTimerRef = useRef<number | null>(null)
   const pollStartRef = useRef<number>(0)
@@ -314,6 +317,7 @@ function App() {
         currentTaskId={taskId}
         onSelect={loadHistory}
         onNew={handleNewChat}
+        onCompare={() => setViewMode('compare')}
         refreshTrigger={historyRefreshKey}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -345,6 +349,10 @@ function App() {
         .markdown-body strong { color: #e6edf3; font-weight: 600; }
       `}</style>
 
+      {viewMode === 'compare' ? (
+        <CompareView onBack={() => setViewMode('chat')} />
+      ) : (
+        <>
       {/* ========== 对话流 ========== */}
       <main
         style={{
@@ -677,6 +685,8 @@ function App() {
           </button>
         </div>
       </footer>
+        </>
+      )}
       </div>
     </div>
   )

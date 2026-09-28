@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, Plus } from 'lucide-react'
+import { Activity, GitCompare, Plus } from 'lucide-react'
 import { StatusDot } from './StatusDot'
 
 // 历史任务条目（GET /api/tasks 返回的单条结构）
@@ -19,6 +19,8 @@ interface HistorySidebarProps {
   onSelect: (taskId: string) => void
   /** 点击「新对话」时回调 */
   onNew: () => void
+  /** 点击「对比模式」时回调 */
+  onCompare: () => void
   /** 变化时重新拉取列表 */
   refreshTrigger: number
 }
@@ -45,7 +47,7 @@ function statusColor(s: string): string {
   return '#6e7681'
 }
 
-export function HistorySidebar({ currentTaskId, onSelect, onNew, refreshTrigger }: HistorySidebarProps) {
+export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, refreshTrigger }: HistorySidebarProps) {
   const [tasks, setTasks] = useState<HistoryTask[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -96,6 +98,11 @@ export function HistorySidebar({ currentTaskId, onSelect, onNew, refreshTrigger 
       {/* 新对话按钮 */}
       <button onClick={onNew} className="history-new-btn">
         <Plus size={14} /> 新对话
+      </button>
+
+      {/* 对比模式按钮 */}
+      <button onClick={onCompare} className="history-new-btn">
+        <GitCompare size={14} /> 对比模式
       </button>
 
       {/* 历史列表 */}
