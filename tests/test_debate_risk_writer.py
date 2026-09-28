@@ -13,6 +13,8 @@ def test_debate_node_mock(monkeypatch):
     call_count = [0]
     def mock_call_llm(prompt, tier="cheap", *, temperature=0.3, max_retries=2):
         call_count[0] += 1
+        if "整理员" in prompt or "研究摘要" in prompt:
+            return "【摘要】测试用压缩摘要", 50, 0.00005
         if "主持人" in prompt or "JUDGE" in prompt or "裁决" in prompt:
             verdict = json.dumps({
                 "stance": "看多",
@@ -36,7 +38,7 @@ def test_debate_node_mock(monkeypatch):
 
     assert result["status"] == "running"
     assert result["debate_rounds"] == 2
-    # 3 轮 × 2 条 + 1 裁决 = 7 条
+    # 2 轮 × 2 条 + 1 裁决 = 5 条
     assert len(result["debate_records"]) == 5
     assert result["debate_records"][0]["side"] == "bull"
     assert result["debate_records"][1]["side"] == "bear"
@@ -46,6 +48,8 @@ def test_debate_node_mock(monkeypatch):
 def test_debate_judge_json_fallback(monkeypatch):
     """测试裁决 JSON 解析失败降级"""
     def mock_call_llm(prompt, tier="cheap", *, temperature=0.3, max_retries=2):
+        if "整理员" in prompt or "研究摘要" in prompt:
+            return "【摘要】测试用压缩摘要", 50, 0.00005
         if "裁决" in prompt or "主持人" in prompt:
             return "这不是 JSON", 100, 0.0001
         return "发言内容", 100, 0.0001

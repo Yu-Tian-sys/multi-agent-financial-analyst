@@ -18,9 +18,7 @@ MAX_DEBATE_ROUNDS = 2
 # Prompt 模板
 # ========================================
 
-BULL_PROMPT = """你是一个乐观的多头研究员，正在为「{topic}」的投资价值进行辩护。
-
-以下是收集到的资料：
+SUMMARIZE_PROMPT = """你是一个金融数据整理员。请把以下资料压缩成不超过 200 字的研究摘要。
 
 【财务数据】
 {financial}
@@ -30,6 +28,20 @@ BULL_PROMPT = """你是一个乐观的多头研究员，正在为「{topic}」�
 
 【研报观点】
 {reports}
+
+要求：
+1. 保留所有具体数字（营收、利润、净利率、目标价）
+2. 保留所有评级（买入/中性/卖出）
+3. 保留所有新闻标题的核心事件
+4. 用紧凑格式，不要解释
+5. 只输出摘要，不要其他内容"""
+
+BULL_PROMPT = """你是一个乐观的多头研究员，正在为「{topic}」的投资价值进行辩护。
+
+以下是收集到的资料：
+
+【研究摘要】
+{summary}
 
 【历史辩论】
 {history}
@@ -43,14 +55,8 @@ BEAR_PROMPT = """你是一个谨慎的空头研究员，正在对「{topic}」�
 
 以下是收集到的资料：
 
-【财务数据】
-{financial}
-
-【新闻情绪】
-{news}
-
-【研报观点】
-{reports}
+【研究摘要】
+{summary}
 
 【历史辩论】
 {history}
@@ -140,6 +146,33 @@ def _format_history(records: list) -> str:
 # 辩论主体
 # ========================================
 
+def summarize_context(context: Dict[str, str]) -> Tuple[str, int, float]:
+    """
+    把财务/新闻/研报压缩成 200 字摘要
+
+    Args:
+        context: _format_context 返回的 {"financial": ..., "news": ..., "reports": ...}
+
+    Returns:
+        (摘要文本, tokens, cost)
+        失败时降级：直接返回原始拼接
+    """
+    prompt = SUMMARIZE_PROMPT.format(
+        financial=context["financial"],
+        news=context["news"],
+        reports=context["reports"],
+    )
+    try:
+        summary, tokens, cost = router_module.call_llm(
+            prompt, tier="cheap", temperature=0.3
+        )
+        return summary, tokens, cost
+    except Exception as e:
+        logger.warning(f"[debate] 总结失败，降级用原始上下文：{e}")
+        fallback = f"{context['financial']}\n{context['news']}\n{context['reports']}"
+        return fallback, 0, 0.0
+
+
 def debate_node(state: FinanceState) -> dict:
     """
     多空辩论 Agent（LangGraph 节点）
@@ -165,6 +198,11 @@ def debate_node(state: FinanceState) -> dict:
     try:
         # 1. 准备资料
         context = _format_context(state)
+        # 先总结上下文（降本）
+        summary, sum_tokens, sum_cost = summarize_context(context)
+        total_tokens += sum_tokens
+        total_cost += sum_cost
+        logger.info(f"[debate] 上下文已总结（{sum_tokens} tokens）")
         records = []
 
         # 2. 轮流发言
@@ -173,9 +211,7 @@ def debate_node(state: FinanceState) -> dict:
             history = _format_history(records)
             bull_prompt = BULL_PROMPT.format(
                 topic=topic,
-                financial=context["financial"],
-                news=context["news"],
-                reports=context["reports"],
+                summary=summary,
                 history=history,
             )
             bull_content, t1, c1 = router_module.call_llm(bull_prompt, tier="cheap", temperature=0.7)
@@ -192,9 +228,7 @@ def debate_node(state: FinanceState) -> dict:
             history = _format_history(records)
             bear_prompt = BEAR_PROMPT.format(
                 topic=topic,
-                financial=context["financial"],
-                news=context["news"],
-                reports=context["reports"],
+                summary=summary,
                 history=history,
             )
             bear_content, t2, c2 = router_module.call_llm(bear_prompt, tier="cheap", temperature=0.7)
