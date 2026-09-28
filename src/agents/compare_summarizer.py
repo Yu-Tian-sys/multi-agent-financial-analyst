@@ -6,6 +6,7 @@ from openai import OpenAI
 
 from src.config import settings
 from src.db import Database
+from src.observability.tracer import Tracer
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,9 @@ _client = OpenAI(
 
 # 模块级数据库实例（和 main.py 一样用 settings.db_path；SQLite WAL 支持并发读）
 _db = Database(settings.db_path)
+
+# 模块级 Tracer 单例，把对比总结的 LLM 调用记进 traces 表（供 /metrics /trace 查询）
+_tracer = Tracer(db=_db)
 
 # 单份报告截断长度，防止 prompt 过大
 MAX_REPORT_CHARS = 8000
@@ -112,5 +116,18 @@ def summarize(task_id_a: str, task_id_b: str) -> Dict[str, object]:
     logger.info(f"[compare] 开始生成对比总结：{topic_a} vs {topic_b}")
     content, tokens, cost = _call_llm(prompt)
     logger.info(f"[compare] 对比总结完成：tokens={tokens}, cost={cost}")
+
+    # 记进可观测性系统：traces 表（供 /metrics /trace 查询）+ cost_log 表（供 /cost 统计）
+    compare_id = f"{task_id_a}+{task_id_b}"
+    _tracer.log_event(
+        trace_id=compare_id,
+        agent="compare_summarizer",
+        action="llm_call",
+        content="对比总结",
+        tokens=tokens,
+        cost=cost,
+        task_id=compare_id,
+    )
+    _db.log_cost(compare_id, settings.model_cheap, tokens, cost)
 
     return {"summary": content, "tokens": tokens, "cost": cost}
