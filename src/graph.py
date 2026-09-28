@@ -139,6 +139,20 @@ def build_graph() -> StateGraph:
                               content=f"status={result.get('status', '')}",
                               duration=elapsed,
                               task_id=trace_id)
+            # 每步实时把进度写回 tasks 表，供前端进度条展示
+            try:
+                task_id = state.get("task_id")
+                if task_id:
+                    progress_update: dict = {}
+                    if result and result.get("current_step") is not None:
+                        progress_update["current_step"] = result["current_step"]
+                    if result and result.get("total_steps") is not None:
+                        progress_update["total_steps"] = result["total_steps"]
+                    if progress_update:
+                        _db.update_task(task_id, **progress_update)
+            except Exception:
+                # 进度写回失败不影响流水线主流程
+                pass
             return result
         return wrapped
 
