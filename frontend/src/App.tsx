@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { HealthCheck } from './components/HealthCheck'
 import { MermaidChart } from './components/MermaidChart'
 import { EventTimeline, type TraceEvent } from './components/EventTimeline'
+import { GlobalMetrics } from './components/GlobalMetrics'
 
 // 任务状态枚举
 type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'rejected'
@@ -465,6 +466,14 @@ function App() {
 
       {/* 第 4 块：后端健康检查（保留参考） */}
       <HealthCheck />
+
+      {/* 第 5 块：全局指标 + 成本概览（始终显示） */}
+      <div style={{ padding: 16, background: 'white', borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
+          全局指标
+        </div>
+        <GlobalMetrics />
+      </div>
     </div>
   )
 }
