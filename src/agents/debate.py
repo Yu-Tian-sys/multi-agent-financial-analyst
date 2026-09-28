@@ -3,21 +3,12 @@ import time
 import logging
 from typing import Dict, Tuple
 
-from openai import OpenAI
-
 from src.state import FinanceState
 from src.config import settings
+import src.optimization.model_router as router_module
 
 logger = logging.getLogger(__name__)
 
-
-# ========================================
-# LLM 客户端
-# ========================================
-_client = OpenAI(
-    api_key=settings.deepseek_api_key,
-    base_url=settings.deepseek_base_url,
-)
 
 # 最大辩论轮次
 MAX_DEBATE_ROUNDS = 3
@@ -84,42 +75,6 @@ JUDGE_PROMPT = """你是一个中立的辩论主持人，需要综合多空双�
 }}
 
 只输出 JSON，不要其他内容。"""
-
-
-# ========================================
-# LLM 调用
-# ========================================
-
-def _call_llm(prompt: str, max_retries: int = 2) -> Tuple[str, int, float]:
-    """
-    调用 LLM，带重试
-
-    Args:
-        prompt: 提示词
-        max_retries: 最大重试次数
-
-    Returns:
-        (文本内容, tokens, cost)
-    """
-    last_error = None
-    for attempt in range(max_retries + 1):
-        try:
-            response = _client.chat.completions.create(
-                model="deepseek-chat",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-            )
-            content = response.choices[0].message.content
-            tokens = response.usage.total_tokens if response.usage else 0
-            cost = tokens / 1_000_000 * 1.0
-            return content, tokens, cost
-        except Exception as e:
-            last_error = e
-            logger.warning(f"[debate] LLM 调用失败（第 {attempt+1} 次）：{e}")
-            if attempt < max_retries:
-                time.sleep(2 ** attempt)
-
-    raise last_error
 
 
 # ========================================
@@ -223,7 +178,7 @@ def debate_node(state: FinanceState) -> dict:
                 reports=context["reports"],
                 history=history,
             )
-            bull_content, t1, c1 = _call_llm(bull_prompt)
+            bull_content, t1, c1 = router_module.call_llm(bull_prompt, tier="cheap", temperature=0.7)
             total_tokens += t1
             total_cost += c1
             records.append({
@@ -242,7 +197,7 @@ def debate_node(state: FinanceState) -> dict:
                 reports=context["reports"],
                 history=history,
             )
-            bear_content, t2, c2 = _call_llm(bear_prompt)
+            bear_content, t2, c2 = router_module.call_llm(bear_prompt, tier="cheap", temperature=0.7)
             total_tokens += t2
             total_cost += c2
             records.append({
@@ -254,7 +209,7 @@ def debate_node(state: FinanceState) -> dict:
 
         # 3. 主持人裁决
         judge_prompt = JUDGE_PROMPT.format(debate=_format_history(records))
-        judge_content, t3, c3 = _call_llm(judge_prompt)
+        judge_content, t3, c3 = router_module.call_llm(judge_prompt, tier="cheap", temperature=0.7)
         total_tokens += t3
         total_cost += c3
 

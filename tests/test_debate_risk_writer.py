@@ -1,6 +1,7 @@
 import json
 import pytest
 from src.state import create_initial_state
+import src.optimization.model_router as router_module
 
 
 # ========================================
@@ -10,7 +11,7 @@ from src.state import create_initial_state
 def test_debate_node_mock(monkeypatch):
     """测试多空辩论节点（mock LLM）"""
     call_count = [0]
-    def mock_call_llm(prompt, max_retries=2):
+    def mock_call_llm(prompt, tier="cheap", *, temperature=0.3, max_retries=2):
         call_count[0] += 1
         if "主持人" in prompt or "JUDGE" in prompt or "裁决" in prompt:
             verdict = json.dumps({
@@ -23,8 +24,7 @@ def test_debate_node_mock(monkeypatch):
             return verdict, 100, 0.0001
         return f"这是第 {call_count[0]} 次发言", 100, 0.0001
 
-    import src.agents.debate as debate_module
-    monkeypatch.setattr(debate_module, "_call_llm", mock_call_llm)
+    monkeypatch.setattr(router_module, "call_llm", mock_call_llm)
 
     state = create_initial_state("t1", "u1", "user", "AAPL")
     state["financial_data"] = {"raw_metrics": {"profit": "970亿"}}
@@ -45,13 +45,12 @@ def test_debate_node_mock(monkeypatch):
 
 def test_debate_judge_json_fallback(monkeypatch):
     """测试裁决 JSON 解析失败降级"""
-    def mock_call_llm(prompt, max_retries=2):
+    def mock_call_llm(prompt, tier="cheap", *, temperature=0.3, max_retries=2):
         if "裁决" in prompt or "主持人" in prompt:
             return "这不是 JSON", 100, 0.0001
         return "发言内容", 100, 0.0001
 
-    import src.agents.debate as debate_module
-    monkeypatch.setattr(debate_module, "_call_llm", mock_call_llm)
+    monkeypatch.setattr(router_module, "call_llm", mock_call_llm)
 
     state = create_initial_state("t1", "u1", "user", "AAPL")
     state["financial_data"] = {}
