@@ -185,12 +185,16 @@ curl http://127.0.0.1:8000/overview
 ## 测试
 
 ```bash
-# 全部测试
+# 后端全部测试
 pytest tests/ -v
 # 130 passed, 2 deselected (e2e)
 
 # 端到端回归（3 个标的，约 5-6 分钟）
 python scripts/regression.py
+
+# 前端组件测试
+cd frontend && npx vitest run
+# 16 passed (ProgressBar / Badge / Stat / StatusDot)
 ```
 
 ## 实际运行数据
@@ -262,7 +266,8 @@ multi-agent-financial-analyst/
 │   ├── safety/               # 防注入+权限+审计+沙箱
 │   ├── memory/               # 三层记忆
 │   └── observability/        # Tracer + Metrics + Dashboard
-├── tests/                    # 130 个测试
+├── tests/                    # 130 个后端测试
+├── frontend/src/test/        # 16 个前端组件测试（vitest）
 ├── scripts/
 │   └── regression.py         # 端到端回归脚本
 ├── docs/                     # 架构文档
@@ -301,8 +306,8 @@ LLM 有随机性，同一标的两次跑可能给出不同风险等级。规则�
 - LangGraph 流水线跑通
 - 三层记忆架构
 - 完整可观测性
-- FastAPI 服务 10 个接口
-- 130 个测试全通过
+- FastAPI 服务 10 个 REST 接口 + WebSocket 实时推送
+- 130 个后端测试 + 16 个前端组件测试全通过
 - 端到端回归 100% 成功
 
 规划中：
