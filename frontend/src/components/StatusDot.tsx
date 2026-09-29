@@ -62,17 +62,12 @@ export function StatusDot() {
     ''
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div className="flex items-center gap-2">
       <div
-        className={animClass}
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          background: dotColor,
-        }}
+        className={`${animClass} w-2 h-2 rounded-full`}
+        style={{ background: dotColor }}
       />
-      <span style={{ fontSize: 12, color: textColor, fontWeight: 400 }}>{text}</span>
+      <span className="text-xs font-normal" style={{ color: textColor }}>{text}</span>
     </div>
   )
 }

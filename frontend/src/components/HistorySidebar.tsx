@@ -86,23 +86,15 @@ export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, onOb
 
   return (
     <div
-      style={{
-        width: 260,
-        flexShrink: 0,
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        background: '#0d1117',
-        borderRight: '1px solid #21262d',
-      }}
+      className="w-[260px] shrink-0 h-full flex flex-col bg-app border-r border-divider"
     >
       {/* 顶部品牌区 */}
-      <div style={{ padding: 16, borderBottom: '1px solid #21262d' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Activity size={20} style={{ color: '#58a6ff' }} strokeWidth={2} />
-          <span style={{ fontSize: 15, fontWeight: 600, color: '#e6edf3' }}>金融分析助手</span>
+      <div className="p-4 border-b border-divider">
+        <div className="flex items-center gap-2">
+          <Activity size={20} className="text-accent" strokeWidth={2} />
+          <span className="text-[15px] font-semibold text-fg">金融分析助手</span>
         </div>
-        <div style={{ fontSize: 12, color: '#8b949e', marginTop: 4 }}>多 Agent 协作</div>
+        <div className="text-xs text-fg2 mt-1">多 Agent 协作</div>
       </div>
 
       {/* 新对话按钮 */}
@@ -121,14 +113,14 @@ export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, onOb
       </button>
 
       {/* 历史列表 */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
+      <div className="flex-1 overflow-y-auto p-2">
         {error && (
-          <div style={{ fontSize: 12, color: '#f85149', textAlign: 'center', padding: 24 }}>
+          <div className="text-xs text-danger text-center p-6">
             {error}
           </div>
         )}
         {tasks.length === 0 && !loading && !error && (
-          <div style={{ fontSize: 12, color: '#6e7681', textAlign: 'center', padding: 24 }}>
+          <div className="text-xs text-muted text-center p-6">
             暂无历史记录
           </div>
         )}
@@ -141,27 +133,15 @@ export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, onOb
             className={t.task_id === currentTaskId ? 'history-item active' : 'history-item'}
           >
             <div
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: statusColor(t.status),
-                flexShrink: 0,
-              }}
+              className="w-2 h-2 rounded-full shrink-0"
+              style={{ background: statusColor(t.status) }}
             />
             <span
-              style={{
-                fontSize: 14,
-                color: '#e6edf3',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                flex: 1,
-              }}
+              className="text-sm text-fg whitespace-nowrap overflow-hidden text-ellipsis flex-1"
             >
               {t.topic || '(未命名)'}
             </span>
-            <span style={{ fontSize: 12, color: '#6e7681', flexShrink: 0 }}>
+            <span className="text-xs text-muted shrink-0">
               {formatRelativeTime(t.created_at)}
             </span>
             {hoveredId === t.task_id && (
@@ -172,17 +152,7 @@ export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, onOb
                     onDelete(t.task_id)
                   }
                 }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                  marginLeft: 4,
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  color: '#6e7681',
-                }}
+                className="bg-transparent border-none cursor-pointer p-0 ml-1 shrink-0 flex items-center text-muted"
                 onMouseEnter={(e) => { e.currentTarget.style.color = '#f85149' }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = '#6e7681' }}
                 title="删除"
@@ -195,7 +165,7 @@ export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, onOb
       </div>
 
       {/* 底部状态点 */}
-      <div style={{ padding: 12, borderTop: '1px solid #21262d' }}>
+      <div className="p-3 border-t border-divider">
         <StatusDot />
       </div>
     </div>

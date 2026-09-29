@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
 /* ============================================================
@@ -18,20 +18,14 @@ export function SectionTitle({
   actions?: ReactNode
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Icon size={14} style={{ color: '#6e7681' }} strokeWidth={2} />
-        <span style={{
-          fontSize: 12,
-          fontWeight: 600,
-          color: '#6e7681',
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-        }}>
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-2">
+        <Icon size={14} className="text-muted" strokeWidth={2} />
+        <span className="text-xs font-semibold text-muted tracking-wider uppercase">
           {title}
         </span>
         {hint && (
-          <span style={{ fontSize: 12, color: '#6e7681', letterSpacing: '0.05em' }}>· {hint}</span>
+          <span className="text-xs text-muted tracking-wider">· {hint}</span>
         )}
       </div>
       {actions}
@@ -51,23 +45,12 @@ export function Stat({
 }) {
   return (
     <div>
-      <div style={{
-        fontSize: 12,
-        color: '#6e7681',
-        marginBottom: 8,
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-        fontWeight: 600,
-      }}>
+      <div className="text-xs text-muted mb-2 tracking-wider uppercase font-semibold">
         {label}
       </div>
       <div
-        className="stat-value"
-        style={{
-          fontSize: 32,
-          fontWeight: 600,
-          color: accent ? '#58a6ff' : '#e6edf3',
-        }}
+        className="stat-value text-[32px] font-semibold"
+        style={{ color: accent ? '#58a6ff' : '#e6edf3' }}
       >
         {value}
       </div>
@@ -85,21 +68,13 @@ export function ProgressBar({
 }) {
   return (
     <div
-      style={{
-        width: '100%',
-        height,
-        background: '#0d1117',
-        border: '1px solid #30363d',
-        borderRadius: 999,
-        overflow: 'hidden',
-      }}
+      className="w-full bg-app border border-edge rounded-full overflow-hidden"
+      style={{ height }}
     >
       <div
+        className="h-full bg-accent rounded-full"
         style={{
           width: `${Math.min(100, Math.max(0, value))}%`,
-          height: '100%',
-          background: '#58a6ff',
-          borderRadius: 999,
           transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       />
@@ -126,18 +101,11 @@ export function Badge({
   const s = styles[tone]
   return (
     <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap"
       style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        padding: '2px 8px',
-        fontSize: 12,
-        fontWeight: 500,
         background: s.bg,
         color: s.color,
         border: `1px solid ${s.border}`,
-        borderRadius: 999,
-        whiteSpace: 'nowrap',
       }}
     >
       {Icon && <Icon size={12} strokeWidth={2} />}
@@ -150,16 +118,7 @@ export function Badge({
 export function ErrorBanner({ children }: { children: ReactNode }) {
   return (
     <div
-      style={{
-        marginTop: 12,
-        padding: '10px 12px',
-        background: 'rgba(248, 81, 73, 0.08)',
-        border: '1px solid rgba(248, 81, 73, 0.3)',
-        borderRadius: 4,
-        fontSize: 14,
-        color: '#f85149',
-        whiteSpace: 'pre-wrap' as CSSProperties['whiteSpace'],
-      }}
+      className="mt-3 px-3 py-2.5 bg-[rgba(248,81,73,0.08)] border border-[rgba(248,81,73,0.3)] rounded-sm text-sm text-danger whitespace-pre-wrap"
     >
       {children}
     </div>
@@ -170,16 +129,7 @@ export function ErrorBanner({ children }: { children: ReactNode }) {
 export function WarningBanner({ children }: { children: ReactNode }) {
   return (
     <div
-      style={{
-        marginTop: 12,
-        padding: '10px 12px',
-        background: 'rgba(139, 148, 158, 0.08)',
-        border: '1px solid rgba(139, 148, 158, 0.3)',
-        borderRadius: 4,
-        fontSize: 14,
-        color: '#8b949e',
-        whiteSpace: 'pre-wrap' as CSSProperties['whiteSpace'],
-      }}
+      className="mt-3 px-3 py-2.5 bg-[rgba(139,148,158,0.08)] border border-[rgba(139,148,158,0.3)] rounded-sm text-sm text-fg2 whitespace-pre-wrap"
     >
       {children}
     </div>
@@ -189,7 +139,7 @@ export function WarningBanner({ children }: { children: ReactNode }) {
 /** 空状态提示 */
 export function EmptyHint({ children }: { children: ReactNode }) {
   return (
-    <div style={{ padding: 24, textAlign: 'center', color: '#6e7681', fontSize: 14 }}>
+    <div className="p-6 text-center text-muted text-sm">
       {children}
     </div>
   )

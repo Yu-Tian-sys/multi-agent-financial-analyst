@@ -80,18 +80,18 @@ export function ObservabilityPanel({ onBack }: ObservabilityPanelProps) {
   }, [])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 24, gap: 16, overflowY: 'auto' }}>
+    <div className="flex flex-col h-full p-6 gap-4 overflow-y-auto">
       {/* 顶部标题栏 */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Activity size={20} style={{ color: '#58a6ff' }} />
-          <span style={{ fontSize: 17, fontWeight: 600, color: '#e6edf3' }}>可观测性概览</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Activity size={20} className="text-accent" />
+          <span className="text-[17px] font-semibold text-fg">可观测性概览</span>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={fetchAll} disabled={loading} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+        <div className="flex gap-2">
+          <button onClick={fetchAll} disabled={loading} className="btn-ghost text-[13px] px-3 py-1.5">
             {loading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} 刷新
           </button>
-          <button onClick={onBack} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+          <button onClick={onBack} className="btn-ghost text-[13px] px-3 py-1.5">
             <ArrowLeft size={13} /> 返回对话
           </button>
         </div>
@@ -100,7 +100,7 @@ export function ObservabilityPanel({ onBack }: ObservabilityPanelProps) {
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
       {/* 统计卡片第一行：任务概览 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div className="grid grid-cols-4 gap-3">
         <StatCard icon={<BarChart3 size={14} />} label="今日任务" value={metrics?.total_tasks ?? '-'} accent />
         <StatCard icon={<Activity size={14} />} label="成功 / 失败" value={metrics ? `${metrics.completed} / ${metrics.failed}` : '-'} />
         <StatCard icon={<FileText size={14} />} label="平均 tokens" value={metrics?.avg_tokens ?? '-'} />
@@ -108,7 +108,7 @@ export function ObservabilityPanel({ onBack }: ObservabilityPanelProps) {
       </div>
 
       {/* 统计卡片第二行：成本明细 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      <div className="grid grid-cols-3 gap-3">
         <StatCard label="今日总 tokens" value={cost?.total_tokens ?? '-'} />
         <StatCard label="平均每任务成本(元)" value={cost?.avg_cost_per_task ?? '-'} accent />
         <StatCard label="成本记录任务数" value={cost?.tasks ?? '-'} />
@@ -116,12 +116,12 @@ export function ObservabilityPanel({ onBack }: ObservabilityPanelProps) {
 
       {/* overview Markdown 报告 */}
       {overview && (
-        <div style={{ marginTop: 8, padding: 16, border: '1px solid #21262d', borderRadius: 8, background: '#0d1117' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <FileText size={16} style={{ color: '#58a6ff' }} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>全局概览报告</span>
+        <div className="mt-2 p-4 border border-divider rounded-lg bg-app">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText size={16} className="text-accent" />
+            <span className="text-sm font-semibold text-fg">全局概览报告</span>
           </div>
-          <div className="markdown-body" style={{ fontSize: 14, lineHeight: 1.6, color: '#e6edf3' }}>
+          <div className="markdown-body text-sm leading-relaxed text-fg">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{overview}</ReactMarkdown>
           </div>
         </div>
@@ -133,12 +133,12 @@ export function ObservabilityPanel({ onBack }: ObservabilityPanelProps) {
 /** 统计卡片：图标 + 标签 + 数值 */
 function StatCard({ icon, label, value, accent }: { icon?: ReactNode; label: string; value: string | number; accent?: boolean }) {
   return (
-    <div style={{ padding: 12, border: '1px solid #21262d', borderRadius: 8, background: '#0d1117' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, color: '#6e7681', fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}>
+    <div className="p-3 border border-divider rounded-lg bg-app">
+      <div className="flex items-center gap-1.5 mb-2 text-muted text-xs tracking-wider uppercase font-semibold">
         {icon}
         {label}
       </div>
-      <div className="stat-value" style={{ fontSize: 24, fontWeight: 600, color: accent ? '#58a6ff' : '#e6edf3' }}>
+      <div className="stat-value text-2xl font-semibold" style={{ color: accent ? '#58a6ff' : '#e6edf3' }}>
         {value}
       </div>
     </div>

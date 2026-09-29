@@ -62,10 +62,10 @@ function ComparePanel({ hook, label, placeholder }: ComparePanelProps) {
   const submitDisabled = hook.submitting || !hook.topic.trim()
 
   return (
-    <div style={{ border: '1px solid #21262d', borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className="border border-divider rounded-lg p-4 flex flex-col overflow-hidden">
       {/* 顶部：标签 + 输入框 + 分析按钮 */}
-      <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3', marginBottom: 12 }}>{label}</span>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+      <span className="text-sm font-semibold text-fg mb-3">{label}</span>
+      <div className="flex gap-2 mb-2">
         <input
           type="text"
           value={hook.topic}
@@ -78,14 +78,12 @@ function ComparePanel({ hook, label, placeholder }: ComparePanelProps) {
           }}
           placeholder={placeholder}
           disabled={inputDisabled}
-          className="input"
-          style={{ flex: 1 }}
+          className="input flex-1"
         />
         <button
           onClick={hook.submit}
           disabled={submitDisabled}
-          className="btn-primary"
-          style={{ flexShrink: 0 }}
+          className="btn-primary shrink-0"
         >
           {hook.submitting ? <Loader2 size={16} className="animate-spin" /> : null}
           {hook.submitting ? '提交中...' : '分析'}
@@ -94,16 +92,16 @@ function ComparePanel({ hook, label, placeholder }: ComparePanelProps) {
 
       {/* task_id 显示（提交后展示，方便核对） */}
       {hook.taskId && (
-        <div style={{ fontSize: 12, color: '#6e7681', fontFamily: "'JetBrains Mono', 'Consolas', monospace", marginBottom: 8 }}>
+        <div className="text-xs text-muted mb-2" style={{ fontFamily: "'JetBrains Mono', 'Consolas', monospace" }}>
           {hook.taskId}
         </div>
       )}
 
       {/* 下方结果区（滚动） */}
-      <div style={{ flex: 1, overflowY: 'auto', marginTop: 4 }}>
+      <div className="flex-1 overflow-y-auto mt-1">
         {/* a. 空状态：无 task 且无 error */}
         {!hook.task && !hook.error && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6e7681', fontSize: 13, minHeight: 120 }}>
+          <div className="flex items-center justify-center text-muted text-[13px] min-h-[120px]">
             结果将显示在这里
           </div>
         )}
@@ -111,30 +109,26 @@ function ComparePanel({ hook, label, placeholder }: ComparePanelProps) {
         {/* b. 分析中：脉动点 + 阶段文字 + 进度条 */}
         {hook.task && isProcessing && (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="flex items-center gap-2.5">
               <div
-                className="dot-pulse"
-                style={{ width: 8, height: 8, borderRadius: '50%', background: '#58a6ff', flexShrink: 0 }}
+                className="dot-pulse w-2 h-2 rounded-full bg-accent shrink-0"
               />
-              <span style={{ fontSize: 15, color: '#e6edf3', fontWeight: 500 }}>
+              <span className="text-[15px] text-fg font-medium">
                 {stageText(hook.task.current_step)}
               </span>
             </div>
             {hook.task.total_steps > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
-                <div style={{ flex: 1, height: 6, borderRadius: 999, background: '#21262d', overflow: 'hidden' }}>
+              <div className="flex items-center gap-3 mt-4">
+                <div className="flex-1 h-1.5 rounded-full bg-divider overflow-hidden">
                   <div
+                    className="h-full rounded-full bg-[linear-gradient(90deg,#58a6ff,#79c0ff)] shadow-[0_0_8px_rgba(88,166,255,0.5)]"
                     style={{
                       width: `${hook.progressPct}%`,
-                      height: '100%',
-                      borderRadius: 999,
-                      background: 'linear-gradient(90deg, #58a6ff, #79c0ff)',
                       transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-                      boxShadow: '0 0 8px rgba(88, 166, 255, 0.5)',
                     }}
                   />
                 </div>
-                <span className="stat-value" style={{ fontSize: 12, color: '#8b949e', minWidth: 40, textAlign: 'right' }}>
+                <span className="stat-value text-xs text-fg2 min-w-10 text-right">
                   {hook.progressPct}%
                 </span>
               </div>
@@ -145,19 +139,19 @@ function ComparePanel({ hook, label, placeholder }: ComparePanelProps) {
         {/* c. 完成：绿色标题 + tokens/cost + 折叠报告 + 下载/重新分析 */}
         {hook.task?.status === 'completed' && (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <CheckCircle2 size={16} style={{ color: '#3fb950' }} />
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>分析完成</span>
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle2 size={16} className="text-success" />
+              <span className="text-sm font-semibold text-fg">分析完成</span>
             </div>
-            <div style={{ display: 'flex', gap: 24, padding: '8px 0', marginBottom: 12, borderBottom: '1px solid #21262d', fontSize: 13 }}>
+            <div className="flex gap-6 py-2 mb-3 border-b border-divider text-[13px]">
               <div>
-                <span style={{ color: '#6e7681' }}>tokens </span>
-                <span className="stat-value" style={{ color: '#e6edf3', fontWeight: 600 }}>{hook.task.total_tokens}</span>
+                <span className="text-muted">tokens </span>
+                <span className="stat-value text-fg font-semibold">{hook.task.total_tokens}</span>
               </div>
               <div>
-                <span style={{ color: '#6e7681' }}>cost </span>
-                <span className="stat-value" style={{ color: '#58a6ff', fontWeight: 600 }}>{hook.task.total_cost}</span>
-                <span style={{ color: '#6e7681' }}> 元</span>
+                <span className="text-muted">cost </span>
+                <span className="stat-value text-accent font-semibold">{hook.task.total_cost}</span>
+                <span className="text-muted"> 元</span>
               </div>
             </div>
 
@@ -167,34 +161,20 @@ function ComparePanel({ hook, label, placeholder }: ComparePanelProps) {
                 <div className="collapse-header" onClick={() => setReportOpen((v) => !v)}>
                   {reportOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   <span>分析报告</span>
-                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="ml-auto flex items-center gap-2">
                     {/* 下载报告：stopPropagation 避免触发折叠 */}
                     <button
                       onClick={(e) => { e.stopPropagation(); hook.downloadReport() }}
-                      className="btn-ghost"
-                      style={{ fontSize: 12, padding: '2px 8px' }}
+                      className="btn-ghost text-xs px-2 py-0.5"
                     >
                       <Download size={13} /> 下载 .md
                     </button>
-                    <span style={{ color: '#6e7681' }}>{reportOpen ? '收起' : '展开'}</span>
+                    <span className="text-muted">{reportOpen ? '收起' : '展开'}</span>
                   </span>
                 </div>
                 {reportOpen && (
                   <div
-                    className="markdown-body"
-                    style={{
-                      marginTop: 8,
-                      marginBottom: 8,
-                      padding: 12,
-                      background: '#0d1117',
-                      border: '1px solid #30363d',
-                      borderRadius: 4,
-                      maxHeight: 400,
-                      overflow: 'auto',
-                      fontSize: 14,
-                      lineHeight: 1.7,
-                      color: '#e6edf3',
-                    }}
+                    className="markdown-body mt-2 mb-2 p-3 bg-app border border-edge rounded-sm max-h-[400px] overflow-auto text-sm leading-[1.7] text-fg"
                   >
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {hook.task.final_report}
@@ -205,8 +185,8 @@ function ComparePanel({ hook, label, placeholder }: ComparePanelProps) {
             )}
 
             {/* 重新分析：用相同 topic 再跑一次 */}
-            <div style={{ marginTop: 12 }}>
-              <button onClick={hook.submit} disabled={hook.submitting} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+            <div className="mt-3">
+              <button onClick={hook.submit} disabled={hook.submitting} className="btn-ghost text-[13px] px-3 py-1.5">
                 <RefreshCw size={13} /> 重新分析
               </button>
             </div>
@@ -216,15 +196,15 @@ function ComparePanel({ hook, label, placeholder }: ComparePanelProps) {
         {/* d. 失败：红色标题 + 错误信息 + 重新分析 */}
         {hook.task?.status === 'failed' && (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <XCircle size={16} style={{ color: '#f85149' }} />
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>分析失败</span>
+            <div className="flex items-center gap-2 mb-2">
+              <XCircle size={16} className="text-danger" />
+              <span className="text-sm font-semibold text-fg">分析失败</span>
             </div>
             {hook.task.error && (
-              <div style={{ fontSize: 13, color: '#f85149', whiteSpace: 'pre-wrap' }}>{hook.task.error}</div>
+              <div className="text-[13px] text-danger whitespace-pre-wrap">{hook.task.error}</div>
             )}
-            <div style={{ marginTop: 12 }}>
-              <button onClick={hook.submit} disabled={hook.submitting} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+            <div className="mt-3">
+              <button onClick={hook.submit} disabled={hook.submitting} className="btn-ghost text-[13px] px-3 py-1.5">
                 <RefreshCw size={13} /> 重新分析
               </button>
             </div>
@@ -234,15 +214,15 @@ function ComparePanel({ hook, label, placeholder }: ComparePanelProps) {
         {/* e. 拒绝：橙色标题 + 错误信息 + 重新分析 */}
         {hook.task?.status === 'rejected' && (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <Ban size={16} style={{ color: '#d29922' }} />
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>任务被拒绝</span>
+            <div className="flex items-center gap-2 mb-2">
+              <Ban size={16} className="text-[#d29922]" />
+              <span className="text-sm font-semibold text-fg">任务被拒绝</span>
             </div>
             {hook.task.error && (
-              <div style={{ fontSize: 13, color: '#d29922', whiteSpace: 'pre-wrap' }}>{hook.task.error}</div>
+              <div className="text-[13px] text-[#d29922] whitespace-pre-wrap">{hook.task.error}</div>
             )}
-            <div style={{ marginTop: 12 }}>
-              <button onClick={hook.submit} disabled={hook.submitting} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+            <div className="mt-3">
+              <button onClick={hook.submit} disabled={hook.submitting} className="btn-ghost text-[13px] px-3 py-1.5">
                 <RefreshCw size={13} /> 重新分析
               </button>
             </div>
@@ -251,7 +231,7 @@ function ComparePanel({ hook, label, placeholder }: ComparePanelProps) {
 
         {/* f. 错误信息（提交/轮询失败，无 task 时） */}
         {hook.error && !hook.task && (
-          <div style={{ fontSize: 13, color: '#f85149', whiteSpace: 'pre-wrap' }}>{hook.error}</div>
+          <div className="text-[13px] text-danger whitespace-pre-wrap">{hook.error}</div>
         )}
       </div>
     </div>
@@ -303,59 +283,59 @@ export function CompareView({ onBack }: CompareViewProps) {
   const bothCompleted = left.task?.status === 'completed' && right.task?.status === 'completed'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 24, gap: 16 }}>
+    <div className="flex flex-col h-full p-6 gap-4">
       {/* 顶部标题栏 */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <GitCompare size={20} style={{ color: '#58a6ff' }} />
-          <span style={{ fontSize: 17, fontWeight: 600, color: '#e6edf3' }}>对比分析</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <GitCompare size={20} className="text-accent" />
+          <span className="text-[17px] font-semibold text-fg">对比分析</span>
         </div>
-        <button onClick={onBack} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+        <button onClick={onBack} className="btn-ghost text-[13px] px-3 py-1.5">
           <ArrowLeft size={13} /> 返回对话
         </button>
       </div>
 
       {/* 双面板主体：左右等宽 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, flex: 1, overflow: 'hidden' }}>
+      <div className="grid grid-cols-2 gap-4 flex-1 overflow-hidden">
         <ComparePanel hook={left} label="股票 A" placeholder="例如 AAPL" />
         <ComparePanel hook={right} label="股票 B" placeholder="例如 TSLA" />
       </div>
 
       {/* AI 对比结论区：仅当两边都完成时显示 */}
       {bothCompleted && (
-        <div style={{ marginTop: 16, padding: 16, border: '1px solid #21262d', borderRadius: 8, background: '#0d1117' }}>
+        <div className="mt-4 p-4 border border-divider rounded-lg bg-app">
           {/* 顶部标题 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <Sparkles size={16} style={{ color: '#58a6ff' }} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>AI 对比结论</span>
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles size={16} className="text-accent" />
+            <span className="text-sm font-semibold text-fg">AI 对比结论</span>
           </div>
 
           {/* 无结果且不在加载：显示生成按钮 */}
           {!compareResult && !compareLoading && (
-            <button onClick={generateCompare} className="btn-primary" style={{ fontSize: 13, padding: '6px 12px' }}>
+            <button onClick={generateCompare} className="btn-primary text-[13px] px-3 py-1.5">
               <Sparkles size={13} /> 生成对比结论
             </button>
           )}
 
           {/* 加载中：脉动点 + 提示 */}
           {compareLoading && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div className="dot-pulse" style={{ width: 8, height: 8, borderRadius: '50%', background: '#58a6ff', flexShrink: 0 }} />
-              <span style={{ fontSize: 14, color: '#8b949e' }}>AI 正在对比两份报告...</span>
+            <div className="flex items-center gap-2.5">
+              <div className="dot-pulse w-2 h-2 rounded-full bg-accent shrink-0" />
+              <span className="text-sm text-fg2">AI 正在对比两份报告...</span>
             </div>
           )}
 
           {/* 有结果：显示总结 + tokens/cost + 重新生成 */}
           {compareResult && !compareLoading && (
             <div>
-              <div style={{ fontSize: 14, lineHeight: 1.7, color: '#e6edf3', whiteSpace: 'pre-wrap' }}>
+              <div className="text-sm leading-[1.7] text-fg whitespace-pre-wrap">
                 {compareResult.summary}
               </div>
-              <div style={{ fontSize: 12, color: '#6e7681', fontFamily: "'JetBrains Mono', 'Consolas', monospace", marginTop: 8 }}>
+              <div className="text-xs text-muted mt-2" style={{ fontFamily: "'JetBrains Mono', 'Consolas', monospace" }}>
                 本次对比：{compareResult.tokens} tokens · {compareResult.cost} 元
               </div>
-              <div style={{ marginTop: 8 }}>
-                <button onClick={generateCompare} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+              <div className="mt-2">
+                <button onClick={generateCompare} className="btn-ghost text-[13px] px-3 py-1.5">
                   <RefreshCw size={13} /> 重新生成
                 </button>
               </div>
@@ -365,9 +345,9 @@ export function CompareView({ onBack }: CompareViewProps) {
           {/* 错误信息 */}
           {compareError && !compareLoading && (
             <div>
-              <div style={{ fontSize: 13, color: '#f85149', whiteSpace: 'pre-wrap' }}>{compareError}</div>
-              <div style={{ marginTop: 8 }}>
-                <button onClick={generateCompare} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+              <div className="text-[13px] text-danger whitespace-pre-wrap">{compareError}</div>
+              <div className="mt-2">
+                <button onClick={generateCompare} className="btn-ghost text-[13px] px-3 py-1.5">
                   <RefreshCw size={13} /> 重试
                 </button>
               </div>

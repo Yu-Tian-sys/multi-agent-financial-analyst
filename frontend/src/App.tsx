@@ -337,7 +337,7 @@ function App() {
   const isProcessing = task?.status === 'pending' || task?.status === 'running'
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#0d1117' }}>
+    <div className="flex h-screen bg-app">
       <HistorySidebar
         currentTaskId={taskId}
         onSelect={loadHistory}
@@ -347,7 +347,7 @@ function App() {
         onDelete={handleDelete}
         refreshTrigger={historyRefreshKey}
       />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div className="flex-1 flex flex-col min-w-0">
       {/* Markdown 渲染样式 */}
       <style>{`
         .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
@@ -384,42 +384,21 @@ function App() {
         <>
       {/* ========== 对话流 ========== */}
       <main
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '24px',
-        }}
+        className="flex-1 overflow-y-auto p-6"
       >
         <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-            maxWidth: 920,
-            margin: '0 auto',
-            minHeight: '100%',
-            justifyContent: 'flex-start',
-          }}
+          className="flex flex-col gap-4 max-w-[920px] mx-auto min-h-full justify-start"
         >
           {/* 空状态 */}
           {!task && !taskId && !error && (
             <div
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#6e7681',
-                padding: 48,
-                textAlign: 'center',
-              }}
+              className="flex-1 flex flex-col items-center justify-center text-muted p-12 text-center"
             >
-              <Activity size={40} style={{ color: '#30363d', marginBottom: 16 }} />
-              <div style={{ fontSize: 16, fontWeight: 500, color: '#8b949e', marginBottom: 4 }}>
+              <Activity size={40} className="text-edge mb-4" />
+              <div className="text-base font-medium text-fg2 mb-1">
                 输入股票代码开始分析
               </div>
-              <div style={{ fontSize: 13, color: '#6e7681' }}>
+              <div className="text-[13px] text-muted">
                 例如 AAPL、TSLA 或 招商银行
               </div>
             </div>
@@ -438,43 +417,27 @@ function App() {
               {/* 分析中：脉动点 + 阶段文字 / 精致进度条 + 百分比 */}
               {task && isProcessing && (
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="flex items-center gap-2.5">
                     <div
-                      className="dot-pulse"
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        background: '#58a6ff',
-                        flexShrink: 0,
-                      }}
+                      className="dot-pulse w-2 h-2 rounded-full bg-accent shrink-0"
                     />
-                    <span style={{ fontSize: 15, color: '#e6edf3', fontWeight: 500 }}>
+                    <span className="text-[15px] text-fg font-medium">
                       {stageText(task.current_step)}
                     </span>
                   </div>
                   {task.total_steps > 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
-                      <div style={{ flex: 1, height: 6, borderRadius: 999, background: '#21262d', overflow: 'hidden' }}>
+                    <div className="flex items-center gap-3 mt-4">
+                      <div className="flex-1 h-1.5 rounded-full bg-divider overflow-hidden">
                         <div
+                          className="h-full rounded-full bg-[linear-gradient(90deg,#58a6ff,#79c0ff)] shadow-[0_0_8px_rgba(88,166,255,0.5)]"
                           style={{
                             width: `${progressPct}%`,
-                            height: '100%',
-                            borderRadius: 999,
-                            background: 'linear-gradient(90deg, #58a6ff, #79c0ff)',
                             transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-                            boxShadow: '0 0 8px rgba(88, 166, 255, 0.5)',
                           }}
                         />
                       </div>
                       <span
-                        className="stat-value"
-                        style={{
-                          fontSize: 12,
-                          color: '#8b949e',
-                          minWidth: 40,
-                          textAlign: 'right',
-                        }}
+                        className="stat-value text-xs text-fg2 min-w-10 text-right"
                       >
                         {progressPct}%
                       </span>
@@ -486,39 +449,31 @@ function App() {
               {/* 完成 */}
               {task?.status === 'completed' && (
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <CheckCircle2 size={16} style={{ color: '#3fb950' }} />
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>分析完成</span>
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle2 size={16} className="text-success" />
+                    <span className="text-sm font-semibold text-fg">分析完成</span>
                   </div>
 
                   <div
-                    style={{
-                      display: 'flex',
-                      gap: 24,
-                      padding: '8px 0',
-                      marginBottom: 12,
-                      borderBottom: '1px solid #21262d',
-                      fontSize: 13,
-                    }}
+                    className="flex gap-6 py-2 mb-3 border-b border-divider text-[13px]"
                   >
                     <div>
-                      <span style={{ color: '#6e7681' }}>tokens </span>
-                      <span className="stat-value" style={{ color: '#e6edf3', fontWeight: 600 }}>{task.total_tokens}</span>
+                      <span className="text-muted">tokens </span>
+                      <span className="stat-value text-fg font-semibold">{task.total_tokens}</span>
                     </div>
                     <div>
-                      <span style={{ color: '#6e7681' }}>cost </span>
-                      <span className="stat-value" style={{ color: '#58a6ff', fontWeight: 600 }}>{task.total_cost}</span>
-                      <span style={{ color: '#6e7681' }}> 元</span>
+                      <span className="text-muted">cost </span>
+                      <span className="stat-value text-accent font-semibold">{task.total_cost}</span>
+                      <span className="text-muted"> 元</span>
                     </div>
                   </div>
 
                   {/* 重新分析：用相同 topic 再跑一次（与底部「重新开始」语义不同） */}
-                  <div style={{ marginTop: 8 }}>
+                  <div className="mt-2">
                     <button
                       onClick={reanalyze}
                       disabled={submitting}
-                      className="btn-ghost"
-                      style={{ fontSize: 13, padding: '6px 12px' }}
+                      className="btn-ghost text-[13px] px-3 py-1.5"
                     >
                       <RefreshCw size={13} /> 重新分析
                     </button>
@@ -533,39 +488,25 @@ function App() {
                       >
                         <FileText size={14} />
                         <span>分析报告</span>
-                        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="ml-auto flex items-center gap-2">
                           {/* 下载报告按钮 */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
                               downloadReport()
                             }}
-                            className="btn-ghost"
-                            style={{ fontSize: 12, padding: '2px 8px' }}
+                            className="btn-ghost text-xs px-2 py-0.5"
                           >
                             <Download size={13} /> 下载 .md
                           </button>
-                          <span style={{ color: '#6e7681' }}>
+                          <span className="text-muted">
                             {reportOpen ? '收起' : '展开'}
                           </span>
                         </span>
                       </div>
                       {reportOpen && (
                         <div
-                          className="markdown-body"
-                          style={{
-                            marginTop: 8,
-                            marginBottom: 8,
-                            padding: 12,
-                            background: '#0d1117',
-                            border: '1px solid #30363d',
-                            borderRadius: 4,
-                            maxHeight: 500,
-                            overflow: 'auto',
-                            fontSize: 14,
-                            lineHeight: 1.6,
-                            color: '#e6edf3',
-                          }}
+                          className="markdown-body mt-2 mb-2 p-3 bg-app border border-edge rounded-sm max-h-[500px] overflow-auto text-sm leading-relaxed text-fg"
                         >
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
                             {task.final_report}
@@ -583,31 +524,31 @@ function App() {
                     >
                       <ListTree size={14} />
                       <span>事件时间线</span>
-                      <span style={{ marginLeft: 'auto', color: '#6e7681' }}>
+                      <span className="ml-auto text-muted">
                         {timelineOpen ? '收起' : '展开'}
                       </span>
                     </div>
                     {timelineOpen && (
-                      <div style={{ marginTop: 8, marginBottom: 8 }}>
+                      <div className="mt-2 mb-2">
                         {traceError && <ErrorBanner>{traceError}</ErrorBanner>}
                         <EventTimeline events={traceEvents} />
                         {/* Mermaid 时序图源码：后端已生成，不装新依赖，展示源码 + 外链 */}
                         {traceMermaid && (
-                          <div style={{ marginTop: 12 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                              <span style={{ fontSize: 12, color: '#6e7681', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}>
+                          <div className="mt-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs text-muted tracking-wider uppercase font-semibold">
                                 时序图 (Mermaid)
                               </span>
                               <a
                                 href="https://mermaid.live/"
                                 target="_blank"
                                 rel="noreferrer"
-                                style={{ fontSize: 12, color: '#58a6ff' }}
+                                className="text-xs text-accent"
                               >
                                 打开 mermaid.live 渲染 →
                               </a>
                             </div>
-                            <pre style={{ margin: 0, padding: 12, background: '#0d1117', border: '1px solid #30363d', borderRadius: 4, fontSize: 12, lineHeight: 1.5, color: '#8b949e', overflow: 'auto', maxHeight: 240, fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace" }}>
+                            <pre className="m-0 p-3 bg-app border border-edge rounded-sm text-xs leading-normal text-fg2 overflow-auto max-h-[240px]" style={{ fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace" }}>
                               {traceMermaid}
                             </pre>
                           </div>
@@ -617,8 +558,8 @@ function App() {
                   </div>
 
                   {/* 重新开始 */}
-                  <div style={{ marginTop: 12 }}>
-                    <button onClick={reset} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+                  <div className="mt-3">
+                    <button onClick={reset} className="btn-ghost text-[13px] px-3 py-1.5">
                       <RotateCcw size={13} /> 重新开始
                     </button>
                   </div>
@@ -628,13 +569,13 @@ function App() {
               {/* 失败 */}
               {task?.status === 'failed' && (
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <XCircle size={16} style={{ color: '#f85149' }} />
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>分析失败</span>
+                  <div className="flex items-center gap-2 mb-2">
+                    <XCircle size={16} className="text-danger" />
+                    <span className="text-sm font-semibold text-fg">分析失败</span>
                   </div>
                   {task.error && <ErrorBanner>{task.error}</ErrorBanner>}
-                  <div style={{ marginTop: 12 }}>
-                    <button onClick={reset} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+                  <div className="mt-3">
+                    <button onClick={reset} className="btn-ghost text-[13px] px-3 py-1.5">
                       <RotateCcw size={13} /> 重新开始
                     </button>
                   </div>
@@ -644,15 +585,15 @@ function App() {
               {/* 拒绝 */}
               {task?.status === 'rejected' && (
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <Ban size={16} style={{ color: '#8b949e' }} />
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>任务被拒绝</span>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Ban size={16} className="text-fg2" />
+                    <span className="text-sm font-semibold text-fg">任务被拒绝</span>
                   </div>
                   <WarningBanner>
                     {task.error || '任务在合规预检阶段被拒绝（可能因权限/限流/成本熔断）'}
                   </WarningBanner>
-                  <div style={{ marginTop: 12 }}>
-                    <button onClick={reset} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+                  <div className="mt-3">
+                    <button onClick={reset} className="btn-ghost text-[13px] px-3 py-1.5">
                       <RotateCcw size={13} /> 重新开始
                     </button>
                   </div>
@@ -662,14 +603,14 @@ function App() {
               {/* 提交/轮询错误（无 task 时） */}
               {!task && error && (
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                    <AlertCircle size={16} style={{ color: '#f85149', flexShrink: 0, marginTop: 2 }} />
-                    <div style={{ fontSize: 14, color: '#f85149', whiteSpace: 'pre-wrap' }}>
+                  <div className="flex items-start gap-2">
+                    <AlertCircle size={16} className="text-danger shrink-0 mt-0.5" />
+                    <div className="text-sm text-danger whitespace-pre-wrap">
                       {error}
                     </div>
                   </div>
-                  <div style={{ marginTop: 12 }}>
-                    <button onClick={reset} className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }}>
+                  <div className="mt-3">
+                    <button onClick={reset} className="btn-ghost text-[13px] px-3 py-1.5">
                       <RotateCcw size={13} /> 重新开始
                     </button>
                   </div>
@@ -689,21 +630,10 @@ function App() {
 
       {/* ========== 输入区（固定底部） ========== */}
       <footer
-        style={{
-          flexShrink: 0,
-          padding: '12px 24px',
-          borderTop: '1px solid #21262d',
-          background: '#0d1117',
-        }}
+        className="shrink-0 px-6 py-3 border-t border-divider bg-app"
       >
         <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            maxWidth: 920,
-            margin: '0 auto',
-            alignItems: 'flex-end',
-          }}
+          className="flex gap-3 max-w-[920px] mx-auto items-end"
         >
           <input
             type="text"
@@ -717,14 +647,12 @@ function App() {
             }}
             placeholder="输入股票代码或行业名称，例如 AAPL"
             disabled={submitting}
-            className="input"
-            style={{ flex: 1 }}
+            className="input flex-1"
           />
           <button
             onClick={submitAnalyze}
             disabled={submitDisabled}
-            className="btn-primary"
-            style={{ flexShrink: 0 }}
+            className="btn-primary shrink-0"
           >
             {submitting ? (
               <Loader2 size={16} className="animate-spin" />

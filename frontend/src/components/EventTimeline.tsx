@@ -33,7 +33,7 @@ export function EventTimeline({ events }: EventTimelineProps) {
 
   if (events.length === 0) {
     return (
-      <div style={{ padding: 24, textAlign: 'center', color: '#6e7681', fontSize: 14 }}>
+      <div className="p-6 text-center text-muted text-sm">
         暂无事件记录
       </div>
     )
@@ -46,17 +46,10 @@ export function EventTimeline({ events }: EventTimelineProps) {
 
   return (
     <div style={containerStyle}>
-      <div style={{ position: 'relative' }}>
+      <div className="relative">
         {events.length > 1 && (
           <div
-            style={{
-              position: 'absolute',
-              left: 7,
-              top: 16,
-              bottom: 16,
-              width: 1,
-              background: '#30363d',
-            }}
+            className="absolute left-[7px] top-4 bottom-4 w-px bg-edge"
           />
         )}
 
@@ -65,76 +58,47 @@ export function EventTimeline({ events }: EventTimelineProps) {
           return (
             <div
               key={idx}
-              style={{
-                position: 'relative',
-                paddingLeft: 28,
-                marginBottom: 8,
-              }}
+              className="relative pl-7 mb-2"
             >
               <div
-                style={{
-                  position: 'absolute',
-                  left: 3,
-                  top: 14,
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: '#58a6ff',
-                  border: '2px solid #0d1117',
-                  zIndex: 1,
-                }}
+                className="absolute left-[3px] top-3.5 w-2 h-2 rounded-full bg-accent border-2 border-app z-[1]"
               />
               <div
                 onClick={() => toggle(idx)}
-                style={{
-                  padding: 12,
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  lineHeight: 1.5,
-                }}
+                className="p-3 cursor-pointer text-sm leading-normal"
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div className="flex items-center gap-3 flex-wrap">
                   <span
-                    style={{
-                      color: '#6e7681',
-                      fontSize: 12,
-                      fontFamily: "'JetBrains Mono', monospace",
-                    }}
+                    className="text-muted text-xs"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     {String(idx + 1).padStart(2, '0')}
                   </span>
-                  <span style={{ fontWeight: 500, color: '#e6edf3', fontSize: 14 }}>
+                  <span className="font-medium text-fg text-sm">
                     {e.agent}
                   </span>
                   <span
-                    style={{
-                      fontSize: 12,
-                      padding: '1px 6px',
-                      borderRadius: 4,
-                      background: 'rgba(56, 139, 253, 0.12)',
-                      color: '#58a6ff',
-                      border: '1px solid rgba(56, 139, 253, 0.3)',
-                      fontFamily: "'JetBrains Mono', monospace",
-                    }}
+                    className="text-xs px-1.5 py-px rounded-sm bg-[rgba(56,139,253,0.12)] text-accent border border-[rgba(56,139,253,0.3)]"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     {e.action}
                   </span>
                   {e.duration != null && (
-                    <span style={{ color: '#6e7681', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <span className="text-muted text-xs" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       {(e.duration * 1000).toFixed(0)}ms
                     </span>
                   )}
                   {e.tokens != null && e.tokens > 0 && (
-                    <span style={{ color: '#6e7681', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <span className="text-muted text-xs" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       {e.tokens} tok
                     </span>
                   )}
                   {e.cost != null && e.cost > 0 && (
-                    <span style={{ color: '#6e7681', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <span className="text-muted text-xs" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       {e.cost.toFixed(4)}
                     </span>
                   )}
-                  <span style={{ marginLeft: 'auto', color: '#6e7681', display: 'inline-flex', alignItems: 'center' }}>
+                  <span className="ml-auto text-muted inline-flex items-center">
                     <ChevronDown
                       size={14}
                       style={{
@@ -146,21 +110,8 @@ export function EventTimeline({ events }: EventTimelineProps) {
                 </div>
                 {isOpen && (
                   <pre
-                    style={{
-                      margin: '8px 0 0',
-                      padding: 12,
-                      background: '#0d1117',
-                      border: '1px solid #30363d',
-                      borderRadius: 4,
-                      fontSize: 14,
-                      lineHeight: 1.5,
-                      maxHeight: 300,
-                      overflow: 'auto',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      color: '#8b949e',
-                      fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace",
-                    }}
+                    className="mt-2 p-3 bg-app border border-edge rounded-sm text-sm leading-normal max-h-[300px] overflow-auto whitespace-pre-wrap [word-break:break-word] text-fg2"
+                    style={{ fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace" }}
                   >
                     {e.content || '(空内容)'}
                   </pre>

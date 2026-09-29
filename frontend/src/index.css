@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+@theme {
+  --color-app: #0d1117;
+  --color-inset: #161b22;
+  --color-divider: #21262d;
+  --color-edge: #30363d;
+  --color-edge-strong: #484f58;
+  --color-fg: #e6edf3;
+  --color-fg2: #8b949e;
+  --color-muted: #6e7681;
+  --color-accent: #58a6ff;
+  --color-accent-hover: #4c93f0;
+  --color-success: #3fb950;
+  --color-danger: #f85149;
+  --color-blue-link: #1f6feb;
+}
+
 /* ============================================================
    设计 token：Codex 风（GitHub Dark）
    ============================================================ */
