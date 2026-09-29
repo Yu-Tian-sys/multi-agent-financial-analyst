@@ -339,9 +339,8 @@ cd frontend && npm run dev
 - 提交分析任务（股票代码 / 行业）
 - 实时轮询任务状态（pending → running → completed/failed/rejected）
 - 渲染 Markdown 分析报告（含 GFM 表格）
-- Mermaid Agent 协作流程图（sequenceDiagram）
+- trace Mermaid 时序图（源码 + mermaid.live 外链，零依赖）
 - trace 事件时间线（按事件顺序展开/折叠查看 content）
-- 全局指标与成本概览（今日任务数 / 成功率 / 成本 / tokens + 状态分布条形图）
 - 可观测性看板（独立视图：今日任务数 / 成功失败 / 平均 tokens / 总成本 + 全局概览 Markdown 报告）
 - 对比模式（双任务独立提交轮询 + AI 对比总结）
 - 历史记录侧边栏（点击加载、悬停删除、相对时间）
