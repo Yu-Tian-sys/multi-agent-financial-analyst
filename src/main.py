@@ -9,6 +9,7 @@ from src.config import settings
 from src.db import Database
 from src.graph import run_pipeline
 from src.agents.compare_summarizer import summarize
+from src.agents.precheck import _check_rate_limit, _check_daily_limit
 
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
@@ -182,6 +183,14 @@ def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     # 简单校验
     if not request.topic or not request.topic.strip():
         raise HTTPException(status_code=400, detail="topic 不能为空")
+
+    # 限流前置检查（每分钟 + 每日请求上限），拒绝在创建任务之前
+    ok, err = _check_rate_limit(request.user_id)
+    if not ok:
+        raise HTTPException(status_code=429, detail=err)
+    ok, err = _check_daily_limit(request.user_id)
+    if not ok:
+        raise HTTPException(status_code=429, detail=err)
 
     task_id = str(uuid.uuid4())
     db.create_task(task_id, request.user_id, request.user_role, request.topic)

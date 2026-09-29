@@ -8,7 +8,7 @@ from langgraph.types import Send
 
 from src.state import FinanceState
 from src.db import Database
-from src.agents.precheck import precheck_node
+from src.agents.precheck import precheck_node, add_cost
 from src.agents.planner import planner_node
 from src.agents.financial_analyst import financial_analyst_node
 from src.agents.news_analyst import news_analyst_node
@@ -126,19 +126,35 @@ def build_graph() -> StateGraph:
         return save_node(state, _db)
 
     def _wrap(agent_name, node_func):
-        """包装节点函数，记录追踪事件"""
+        """包装节点函数：记录追踪事件 + 同步进度 + 累加成本到熔断器"""
         def wrapped(state):
             trace_id = state.get("task_id", "unknown")
+            user_id = state.get("user_id", "anonymous")
             start = time.time()
             _tracer.log_event(trace_id, agent_name, "start",
                               content=state.get("topic", ""),
                               task_id=trace_id)
             result = node_func(state)
             elapsed = time.time() - start
+            # 计算本节点 token / 成本增量（result 累计值 - 进入时的状态值）
+            prev_tokens = state.get("total_tokens", 0)
+            prev_cost = state.get("total_cost", 0.0)
+            new_tokens = result.get("total_tokens", prev_tokens) if result else prev_tokens
+            new_cost = result.get("total_cost", prev_cost) if result else prev_cost
+            token_delta = max(0, int(new_tokens) - int(prev_tokens))
+            cost_delta = max(0.0, float(new_cost) - float(prev_cost))
             _tracer.log_event(trace_id, agent_name, "end",
                               content=f"status={result.get('status', '')}",
                               duration=elapsed,
+                              tokens=token_delta,
+                              cost=cost_delta,
                               task_id=trace_id)
+            # 累加成本到熔断器内存表（供 precheck._check_cost_limit 判定）
+            if cost_delta > 0:
+                try:
+                    add_cost(user_id, cost_delta)
+                except Exception:
+                    pass
             # 每步实时把进度写回 tasks 表，供前端进度条展示
             try:
                 task_id = state.get("task_id")

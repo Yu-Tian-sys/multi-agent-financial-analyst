@@ -17,11 +17,12 @@ logger = logging.getLogger(__name__)
 # 限流器（内存版，第 6 周换 Redis）
 # ========================================
 _rate_log: Dict[str, list] = defaultdict(list)
+_daily_rate_log: Dict[str, dict] = {}
 
 
 def _check_rate_limit(user_id: str) -> tuple:
     """
-    检查用户请求频率
+    检查用户请求频率（每分钟窗口）
 
     Args:
         user_id: 用户 ID
@@ -41,6 +42,27 @@ def _check_rate_limit(user_id: str) -> tuple:
 
     # 记录本次请求
     _rate_log[user_id].append(now)
+    return True, None
+
+
+def _check_daily_limit(user_id: str) -> tuple:
+    """
+    检查用户每日请求次数上限
+
+    Args:
+        user_id: 用户 ID
+
+    Returns:
+        (是否通过, 错误信息)
+    """
+    today = time.strftime("%Y-%m-%d")
+    if user_id not in _daily_rate_log or _daily_rate_log[user_id]["date"] != today:
+        _daily_rate_log[user_id] = {"date": today, "count": 0}
+
+    if _daily_rate_log[user_id]["count"] >= settings.rate_limit_per_day:
+        return False, f"今日请求已达上限（{settings.rate_limit_per_day} 次/天），请明天再试"
+
+    _daily_rate_log[user_id]["count"] += 1
     return True, None
 
 
@@ -99,9 +121,10 @@ def precheck_node(state: FinanceState) -> dict:
     流程：
     1. 输入安全检查（注入/长度/乱码）
     2. 权限检查
-    3. 限流检查
-    4. 成本熔断检查
-    5. 记录审计日志
+    3. 成本熔断检查
+    4. 记录审计日志
+
+    注：限流（每分钟/每日请求上限）已前置到 /analyze 路由，避免先建任务再拒绝。
 
     任何一步失败，返回 status='rejected' + error
     全部通过，返回 status='running'
@@ -139,17 +162,7 @@ def precheck_node(state: FinanceState) -> dict:
             "messages": [{"role": "system", "content": f"预检失败：未知角色 {user_role}"}]
         }
 
-    # 3. 限流检查
-    ok, err = _check_rate_limit(user_id)
-    if not ok:
-        logger.warning(f"[precheck] 限流：{err}")
-        return {
-            "status": "rejected",
-            "error": err,
-            "messages": [{"role": "system", "content": f"预检失败：{err}"}]
-        }
-
-    # 4. 成本熔断检查
+    # 3. 成本熔断检查
     ok, err = _check_cost_limit(user_id)
     if not ok:
         logger.warning(f"[precheck] 成本超限：{err}")
@@ -159,7 +172,7 @@ def precheck_node(state: FinanceState) -> dict:
             "messages": [{"role": "system", "content": f"预检失败：{err}"}]
         }
 
-    # 5. 记录审计（需要外部传入 db 时由调用方处理，这里只做状态更新）
+    # 4. 记录审计（需要外部传入 db 时由调用方处理，这里只做状态更新）
     logger.info(f"[precheck] 预检通过：{clean_topic}")
 
     return {
