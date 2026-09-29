@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     
     # 日志
     log_level: str = "INFO"                                       # 日志级别
+
+    # 运行环境
+    env: str = "development"                                      # development / production
     
     # 限制
     max_steps: int = 20                                           # Agent 最大步数
@@ -47,3 +50,9 @@ settings = Settings()
 # 启动检查
 if not settings.deepseek_api_key:
     logger.warning("DEEPSEEK_API_KEY 未设置，请在 .env 文件中配置。")
+
+if settings.env == "production":
+    if settings.llm_mock:
+        logger.warning("生产环境不建议启用 LLM_MOCK，将返回假数据。")
+    if not settings.deepseek_api_key:
+        logger.error("生产环境未设置 DEEPSEEK_API_KEY，LLM 调用将失败。")

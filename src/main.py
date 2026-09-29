@@ -1,8 +1,10 @@
+import asyncio
 import logging
 import uuid
 from contextlib import asynccontextmanager
+from typing import Optional
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from src.config import settings
@@ -233,6 +235,41 @@ def get_task(task_id: str):
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     return task
+
+
+@app.websocket("/ws/{task_id}")
+async def ws_task(websocket: WebSocket, task_id: str):
+    """
+    WebSocket 实时推送任务状态/进度
+
+    客户端连接后，后端轮询 DB（1s）并在状态/步骤变化时推送，
+    任务进入终态（completed/failed/rejected）后关闭连接。
+    替代前端 2s 轮询，降低延迟与无效请求。
+
+    Args:
+        websocket: WebSocket 连接
+        task_id: 任务 ID
+    """
+    await websocket.accept()
+    last_key: Optional[tuple] = None
+    try:
+        while True:
+            task = db.get_task(task_id)
+            if task:
+                key = (task.get("status"), task.get("current_step"), task.get("total_steps"))
+                if key != last_key:
+                    await websocket.send_json({"task": task})
+                    last_key = key
+                    if task.get("status") in ("completed", "failed", "rejected"):
+                        break
+            await asyncio.sleep(1)
+    except WebSocketDisconnect:
+        pass
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
 
 @app.get("/tasks")
