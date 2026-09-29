@@ -74,7 +74,10 @@ export function useCompareTask(): CompareTaskHook {
       return
     }
 
-    fetch(`/api/task/${encodeURIComponent(tid)}`)
+    const controller = new AbortController()
+    const fetchTimeout = window.setTimeout(() => controller.abort(), 5000)
+
+    fetch(`/api/task/${encodeURIComponent(tid)}`, { signal: controller.signal })
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
@@ -99,8 +102,13 @@ export function useCompareTask(): CompareTaskHook {
         pollTimerRef.current = window.setTimeout(() => pollOnce(tid), POLL_INTERVAL_MS)
       })
       .catch((e: unknown) => {
+        // 单次 fetch 超时不当作错误显示，下次轮询会继续尝试
+        if (e instanceof DOMException && e.name === 'AbortError') return
         const msg = e instanceof Error ? e.message : String(e)
         setError(`查询任务状态失败：${msg}`)
+      })
+      .finally(() => {
+        window.clearTimeout(fetchTimeout)
       })
   }
 
@@ -122,6 +130,9 @@ export function useCompareTask(): CompareTaskHook {
     setTaskId(null)
     stopPolling()
 
+    const controller = new AbortController()
+    const fetchTimeout = window.setTimeout(() => controller.abort(), 10000)
+
     fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -130,6 +141,7 @@ export function useCompareTask(): CompareTaskHook {
         user_id: 'web-user',
         user_role: 'user',
       }),
+      signal: controller.signal,
     })
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -140,10 +152,17 @@ export function useCompareTask(): CompareTaskHook {
         startPolling(data.task_id)
       })
       .catch((e: unknown) => {
+        if (e instanceof DOMException && e.name === 'AbortError') {
+          setError('提交超时，请稍后重试')
+          return
+        }
         const msg = e instanceof Error ? e.message : String(e)
         setError(`提交失败：${msg}`)
       })
-      .finally(() => setSubmitting(false))
+      .finally(() => {
+        window.clearTimeout(fetchTimeout)
+        setSubmitting(false)
+      })
   }
 
   /** 重置：清空所有状态，停止轮询 */

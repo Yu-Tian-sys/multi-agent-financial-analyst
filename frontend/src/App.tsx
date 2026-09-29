@@ -18,6 +18,7 @@ import {
 import { EventTimeline, type TraceEvent } from './components/EventTimeline'
 import { HistorySidebar } from './components/HistorySidebar'
 import { CompareView } from './components/CompareView'
+import { ObservabilityPanel } from './components/ObservabilityPanel'
 import { ErrorBanner, WarningBanner } from './components/ui'
 
 // 任务状态枚举
@@ -73,13 +74,14 @@ function App() {
   const [pollTimedOut, setPollTimedOut] = useState<boolean>(false)
   const [traceError, setTraceError] = useState<string>('')
   const [traceEvents, setTraceEvents] = useState<TraceEvent[]>([])
+  const [traceMermaid, setTraceMermaid] = useState<string>('')
   // 折叠状态（纯视觉）
   const [reportOpen, setReportOpen] = useState<boolean>(false)
   const [timelineOpen, setTimelineOpen] = useState<boolean>(false)
   // 历史列表刷新触发器（变化时 HistorySidebar 重新拉 /api/tasks）
   const [historyRefreshKey, setHistoryRefreshKey] = useState<number>(0)
   // 视图模式：对话 vs 对比
-  const [viewMode, setViewMode] = useState<'chat' | 'compare'>('chat')
+  const [viewMode, setViewMode] = useState<'chat' | 'compare' | 'observability'>('chat')
 
   const pollTimerRef = useRef<number | null>(null)
   const pollStartRef = useRef<number>(0)
@@ -156,6 +158,7 @@ function App() {
     setTimelineOpen(false)
     setTraceError('')
     setTraceEvents([])
+    setTraceMermaid('')
     stopPolling()
 
     try {
@@ -220,6 +223,7 @@ function App() {
     setPollTimedOut(false)
     setTraceError('')
     setTraceEvents([])
+    setTraceMermaid('')
     setReportOpen(false)
     setTimelineOpen(false)
     traceFetchedRef.current = null
@@ -255,6 +259,7 @@ function App() {
     setPollTimedOut(false)
     setTraceError('')
     setTraceEvents([])
+    setTraceMermaid('')
     setReportOpen(false)
     setTimelineOpen(false)
     try {
@@ -292,13 +297,15 @@ function App() {
       }
       const data = await resp.json() as { mermaid?: string; events?: TraceEvent[]; summary?: unknown }
       setTraceEvents(data.events ?? [])
+      setTraceMermaid(data.mermaid ?? '')
     } catch (e) {
       setTraceError(e instanceof Error ? e.message : String(e))
     }
   }
 
   useEffect(() => {
-    if (task?.status === 'completed' && task.task_id && traceFetchedRef.current !== task.task_id) {
+    // 终态（含失败）都拉 trace，失败任务也能看到执行轨迹
+    if (task?.status && TERMINAL_STATUSES.includes(task.status) && task.task_id && traceFetchedRef.current !== task.task_id) {
       traceFetchedRef.current = task.task_id
       void fetchTrace(task.task_id)
     }
@@ -336,6 +343,7 @@ function App() {
         onSelect={loadHistory}
         onNew={handleNewChat}
         onCompare={() => setViewMode('compare')}
+        onObservability={() => setViewMode('observability')}
         onDelete={handleDelete}
         refreshTrigger={historyRefreshKey}
       />
@@ -370,6 +378,8 @@ function App() {
 
       {viewMode === 'compare' ? (
         <CompareView onBack={() => setViewMode('chat')} />
+      ) : viewMode === 'observability' ? (
+        <ObservabilityPanel onBack={() => setViewMode('chat')} />
       ) : (
         <>
       {/* ========== 对话流 ========== */}
@@ -581,6 +591,27 @@ function App() {
                       <div style={{ marginTop: 8, marginBottom: 8 }}>
                         {traceError && <ErrorBanner>{traceError}</ErrorBanner>}
                         <EventTimeline events={traceEvents} />
+                        {/* Mermaid 时序图源码：后端已生成，不装新依赖，展示源码 + 外链 */}
+                        {traceMermaid && (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                              <span style={{ fontSize: 12, color: '#6e7681', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}>
+                                时序图 (Mermaid)
+                              </span>
+                              <a
+                                href="https://mermaid.live/"
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ fontSize: 12, color: '#58a6ff' }}
+                              >
+                                打开 mermaid.live 渲染 →
+                              </a>
+                            </div>
+                            <pre style={{ margin: 0, padding: 12, background: '#0d1117', border: '1px solid #30363d', borderRadius: 4, fontSize: 12, lineHeight: 1.5, color: '#8b949e', overflow: 'auto', maxHeight: 240, fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace" }}>
+                              {traceMermaid}
+                            </pre>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

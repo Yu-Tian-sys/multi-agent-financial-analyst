@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, GitCompare, Plus, Trash2 } from 'lucide-react'
+import { Activity, BarChart3, GitCompare, Plus, Trash2 } from 'lucide-react'
 import { StatusDot } from './StatusDot'
 
 // 历史任务条目（GET /api/tasks 返回的单条结构）
@@ -21,6 +21,8 @@ interface HistorySidebarProps {
   onNew: () => void
   /** 点击「对比模式」时回调 */
   onCompare: () => void
+  /** 点击「可观测性」时回调 */
+  onObservability: () => void
   /** 点击删除按钮时回调 */
   onDelete: (taskId: string) => void
   /** 变化时重新拉取列表 */
@@ -49,24 +51,28 @@ function statusColor(s: string): string {
   return '#6e7681'
 }
 
-export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, onDelete, refreshTrigger }: HistorySidebarProps) {
+export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, onObservability, onDelete, refreshTrigger }: HistorySidebarProps) {
   const [tasks, setTasks] = useState<HistoryTask[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string>('')
   // 当前悬停的任务 id，只有悬停时才显示删除按钮
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
-  // refreshTrigger 变化时拉取历史列表，5 秒超时，失败静默
+  // refreshTrigger 变化时拉取历史列表，5 秒超时，失败显示错误提示
   useEffect(() => {
     let cancelled = false
     const controller = new AbortController()
     const timeout = window.setTimeout(() => controller.abort(), 5000)
     setLoading(true)
+    setError('')
     fetch('/api/tasks', { signal: controller.signal })
       .then((r) => r.json())
       .then((data: { tasks?: HistoryTask[] }) => {
         if (!cancelled) setTasks(data.tasks ?? [])
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) setError('历史记录加载失败')
+      })
       .finally(() => {
         if (!cancelled) setLoading(false)
         window.clearTimeout(timeout)
@@ -109,9 +115,19 @@ export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, onDe
         <GitCompare size={14} /> 对比模式
       </button>
 
+      {/* 可观测性按钮 */}
+      <button onClick={onObservability} className="history-new-btn">
+        <BarChart3 size={14} /> 可观测性
+      </button>
+
       {/* 历史列表 */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
-        {tasks.length === 0 && !loading && (
+        {error && (
+          <div style={{ fontSize: 12, color: '#f85149', textAlign: 'center', padding: 24 }}>
+            {error}
+          </div>
+        )}
+        {tasks.length === 0 && !loading && !error && (
           <div style={{ fontSize: 12, color: '#6e7681', textAlign: 'center', padding: 24 }}>
             暂无历史记录
           </div>

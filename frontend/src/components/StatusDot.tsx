@@ -6,32 +6,40 @@ export function StatusDot() {
   const [status, setStatus] = useState<HealthStatus>('checking')
 
   useEffect(() => {
-    const controller = new AbortController()
-    const timer = window.setTimeout(() => controller.abort(), 5000)
+    let cancelled = false
 
-    fetch('/api/health', { signal: controller.signal })
-      .then(async (resp) => {
-        if (!resp.ok) {
-          setStatus('offline')
-          return
-        }
-        try {
-          const data = (await resp.json()) as { status?: string }
-          setStatus(data.status === 'ok' ? 'online' : 'offline')
-        } catch {
-          setStatus('offline')
-        }
-      })
-      .catch(() => {
-        setStatus('offline')
-      })
-      .finally(() => {
-        window.clearTimeout(timer)
-      })
+    function checkOnce(): void {
+      const controller = new AbortController()
+      const timer = window.setTimeout(() => controller.abort(), 5000)
+      fetch('/api/health', { signal: controller.signal })
+        .then(async (resp) => {
+          if (cancelled) return
+          if (!resp.ok) {
+            setStatus('offline')
+            return
+          }
+          try {
+            const data = (await resp.json()) as { status?: string }
+            if (!cancelled) setStatus(data.status === 'ok' ? 'online' : 'offline')
+          } catch {
+            if (!cancelled) setStatus('offline')
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setStatus('offline')
+        })
+        .finally(() => {
+          window.clearTimeout(timer)
+        })
+    }
+
+    checkOnce()
+    // 每 30 秒重新检测，避免后端启动晚于前端时一直显示离线
+    const interval = window.setInterval(checkOnce, 30000)
 
     return () => {
-      controller.abort()
-      window.clearTimeout(timer)
+      cancelled = true
+      window.clearInterval(interval)
     }
   }, [])
 

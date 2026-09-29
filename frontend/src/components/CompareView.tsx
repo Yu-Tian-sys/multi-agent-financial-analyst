@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
@@ -50,6 +50,11 @@ interface ComparePanelProps {
 function ComparePanel({ hook, label, placeholder }: ComparePanelProps) {
   // 面板内部折叠状态（报告展开/收起）
   const [reportOpen, setReportOpen] = useState<boolean>(false)
+
+  // 提交新任务时（taskId 变化）重置折叠状态，避免新报告沿用上一次展开
+  useEffect(() => {
+    setReportOpen(false)
+  }, [hook.taskId])
 
   // 分析中（pending/running）时输入框和按钮都禁用
   const isProcessing = hook.task?.status === 'pending' || hook.task?.status === 'running'
@@ -279,7 +284,8 @@ export function CompareView({ onBack }: CompareViewProps) {
         }),
       })
       if (!resp.ok) {
-        const msg = `HTTP ${resp.status}`
+        const errBody = await resp.json().catch(() => ({ detail: `HTTP ${resp.status}` })) as { detail?: string }
+        const msg = typeof errBody.detail === 'string' ? errBody.detail : `HTTP ${resp.status}`
         setCompareError(`生成对比结论失败：${msg}`)
         return
       }

@@ -17,7 +17,7 @@
 - **审计日志**：所有操作记录到 SQLite
 - **Docker 沙箱**：代码执行禁网、限内存、限 CPU、只读文件系统
 - **限流 + 成本熔断**：每用户每分钟/每日上限
-- **FastAPI 服务**：异步流水线，7 个接口
+- **FastAPI 服务**：异步流水线，10 个接口
 
 ## 架构
 
@@ -255,7 +255,7 @@ multi-agent-financial-analyst/
 │   ├── config.py             # 配置管理
 │   ├── db.py                 # SQLite 持久化（WAL + 锁）
 │   ├── graph.py              # LangGraph 编排 + Tracer 集成
-│   ├── main.py               # FastAPI 服务（7 个接口）
+│   ├── main.py               # FastAPI 服务（10 个接口）
 │   ├── agents/               # 9 个 Agent
 │   ├── tools/                # 6 个工具 + 注册表
 │   ├── safety/               # 防注入+权限+审计+沙箱
@@ -300,7 +300,7 @@ LLM 有随机性，同一标的两次跑可能给出不同风险等级。规则�
 - LangGraph 流水线跑通
 - 三层记忆架构
 - 完整可观测性
-- FastAPI 服务 7 个接口
+- FastAPI 服务 10 个接口
 - 130 个测试全通过
 - 端到端回归 100% 成功
 
@@ -342,5 +342,8 @@ cd frontend && npm run dev
 - Mermaid Agent 协作流程图（sequenceDiagram）
 - trace 事件时间线（按事件顺序展开/折叠查看 content）
 - 全局指标与成本概览（今日任务数 / 成功率 / 成本 / tokens + 状态分布条形图）
+- 可观测性看板（独立视图：今日任务数 / 成功失败 / 平均 tokens / 总成本 + 全局概览 Markdown 报告）
+- 对比模式（双任务独立提交轮询 + AI 对比总结）
+- 历史记录侧边栏（点击加载、悬停删除、相对时间）
 
 **网络**：前端通过 `vite.config.ts` 的 `/api` 代理转发到 `http://127.0.0.1:8000`，无需配置 CORS。
