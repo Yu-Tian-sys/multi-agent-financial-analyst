@@ -17,7 +17,7 @@
 - **审计日志**：所有操作记录到 SQLite
 - **Docker 沙箱**：代码执行禁网、限内存、限 CPU、只读文件系统
 - **限流 + 成本熔断**：每用户每分钟/每日请求上限 + 每日成本上限
-- **FastAPI 服务**：异步流水线，10 个接口
+- **FastAPI 服务**：异步流水线，10 个 REST 接口 + WebSocket 实时推送
 
 ## 架构
 
@@ -338,12 +338,13 @@ cd frontend && npm run dev
 **功能**：
 
 - 提交分析任务（股票代码 / 行业）
-- 实时轮询任务状态（pending → running → completed/failed/rejected）
+- 实时推送任务状态（WebSocket 主路径 + 轮询降级，pending → running → completed/failed/rejected）
 - 渲染 Markdown 分析报告（含 GFM 表格）
 - trace Mermaid 时序图（源码 + mermaid.live 外链，零依赖）
 - trace 事件时间线（按事件顺序展开/折叠查看 content）
 - 可观测性看板（独立视图：今日任务数 / 成功失败 / 平均 tokens / 总成本 + 全局概览 Markdown 报告）
-- 对比模式（双任务独立提交轮询 + AI 对比总结）
+- 对比模式（双任务独立提交 + AI 对比总结）
 - 历史记录侧边栏（点击加载、悬停删除、相对时间）
+- 网络错误自动重试（5xx/断网退避重试，4xx 不重试）
 
 **网络**：前端通过 `vite.config.ts` 的 `/api` 代理转发到 `http://127.0.0.1:8000`，无需配置 CORS。

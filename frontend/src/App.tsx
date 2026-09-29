@@ -46,6 +46,28 @@ const TERMINAL_STATUSES: TaskStatus[] = ['completed', 'failed', 'rejected']
 const POLL_INTERVAL_MS = 2000
 const POLL_MAX_MS = 5 * 60 * 1000
 
+/** 带重试的 fetch：网络错误/5xx 退避重试，4xx 直接返回（业务错误不重试） */
+async function fetchWithRetry(input: string, init: RequestInit, retries = 2): Promise<Response> {
+  let lastErr: unknown
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const resp = await fetch(input, init)
+      if (resp.status >= 500 && i < retries) {
+        await new Promise((r) => setTimeout(r, 500 * (i + 1)))
+        continue
+      }
+      return resp
+    } catch (e) {
+      lastErr = e
+      if (i < retries) {
+        await new Promise((r) => setTimeout(r, 500 * (i + 1)))
+        continue
+      }
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('网络请求失败')
+}
+
 /** 根据 current_step 返回阶段文字 */
 function stageText(currentStep?: number): string {
   if (!currentStep || currentStep <= 0) return '正在准备分析...'
@@ -84,22 +106,39 @@ function App() {
   const [viewMode, setViewMode] = useState<'chat' | 'compare' | 'observability'>('chat')
 
   const pollTimerRef = useRef<number | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
+  const wsTimerRef = useRef<number | null>(null)
   const pollStartRef = useRef<number>(0)
+  const wsGotMsgRef = useRef<boolean>(false)
   const traceFetchedRef = useRef<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   function stopPolling(): void {
+    // 关闭 WebSocket
+    if (wsRef.current) {
+      wsRef.current.onmessage = null
+      wsRef.current.onerror = null
+      wsRef.current.onclose = null
+      try { wsRef.current.close() } catch { /* noop */ }
+      wsRef.current = null
+    }
+    // 清理定时器
     if (pollTimerRef.current !== null) {
       clearTimeout(pollTimerRef.current)
       pollTimerRef.current = null
     }
+    if (wsTimerRef.current !== null) {
+      clearTimeout(wsTimerRef.current)
+      wsTimerRef.current = null
+    }
   }
 
+  // 降级轮询：WebSocket 不可用时回退使用
   async function pollOnce(tid: string): Promise<void> {
     const elapsed = Date.now() - pollStartRef.current
     if (elapsed > POLL_MAX_MS) {
       setPollTimedOut(true)
-      setError('轮询超时，请稍后手动刷新')
+      setError('等待超时，请稍后手动刷新')
       return
     }
 
@@ -142,7 +181,66 @@ function App() {
     stopPolling()
     setPollTimedOut(false)
     pollStartRef.current = Date.now()
+    wsGotMsgRef.current = false
     void pollOnce(tid)
+  }
+
+  // WebSocket 实时推送（主路径）：状态/进度变化即推送，终态自动关闭
+  function startWs(tid: string): void {
+    stopPolling()
+    setPollTimedOut(false)
+    wsGotMsgRef.current = false
+    pollStartRef.current = Date.now()
+
+    // 超时兜底：5 分钟未到终态则提示
+    wsTimerRef.current = window.setTimeout(() => {
+      setPollTimedOut(true)
+      setError('等待超时，请稍后手动刷新')
+      stopPolling()
+    }, POLL_MAX_MS)
+
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    let ws: WebSocket
+    try {
+      ws = new WebSocket(`${proto}://${window.location.host}/ws/${encodeURIComponent(tid)}`)
+    } catch {
+      startPolling(tid)
+      return
+    }
+    wsRef.current = ws
+
+    ws.onmessage = (ev) => {
+      wsGotMsgRef.current = true
+      try {
+        const data = JSON.parse(ev.data) as { task?: Partial<TaskInfo> }
+        const t = data.task
+        if (!t) return
+        const merged: TaskInfo = {
+          task_id: t.task_id ?? tid,
+          status: (t.status as TaskStatus) ?? 'pending',
+          current_step: t.current_step ?? 0,
+          total_steps: t.total_steps ?? 0,
+          topic: t.topic ?? '',
+          final_report: t.final_report ?? '',
+          error: t.error ?? '',
+          total_cost: t.total_cost ?? 0,
+          total_tokens: t.total_tokens ?? 0,
+        }
+        setTask(merged)
+        if (TERMINAL_STATUSES.includes(merged.status)) {
+          stopPolling()
+        }
+      } catch {
+        // 忽略异常消息
+      }
+    }
+
+    ws.onerror = () => {
+      // 连接失败且未收到过消息 → 降级轮询
+      if (!wsGotMsgRef.current) {
+        startPolling(tid)
+      }
+    }
   }
 
   // 提交分析（接受指定 topic，供「重新分析」复用）
@@ -180,7 +278,7 @@ function App() {
       const data = await resp.json() as AnalyzeResponse
       setTaskId(data.task_id)
       setHistoryRefreshKey((k) => k + 1)
-      startPolling(data.task_id)
+      startWs(data.task_id)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setError(`提交失败：${msg}`)
@@ -263,7 +361,7 @@ function App() {
     setReportOpen(false)
     setTimelineOpen(false)
     try {
-      const resp = await fetch(`/api/task/${encodeURIComponent(tid)}`)
+      const resp = await fetchWithRetry(`/api/task/${encodeURIComponent(tid)}`)
       if (!resp.ok) {
         setError('加载历史失败')
         return
@@ -289,7 +387,7 @@ function App() {
 
   async function fetchTrace(tid: string): Promise<void> {
     try {
-      const resp = await fetch(`/api/trace/${encodeURIComponent(tid)}`)
+      const resp = await fetchWithRetry(`/api/trace/${encodeURIComponent(tid)}`)
       if (!resp.ok) {
         const errBody = await resp.json().catch(() => ({ detail: `HTTP ${resp.status} ${resp.statusText}` })) as { detail?: string }
         setTraceError(typeof errBody.detail === 'string' ? errBody.detail : `HTTP ${resp.status}`)
