@@ -142,7 +142,7 @@ def overview_report(metrics) -> str:
     ]
 
     for a in by_agent[:5]:
-        # tokens/cost 为 0 时显示 '-'：traces 表无 per-agent token 数据，
+        # tokens/cost 为 0 时显示 '-'：该 Agent 未发起 LLM 调用，
         # 避免显示 0 造成"未采集"与"真实为 0"混淆
         lines.append(
             f"| {a['agent']} | {a['events']} | {a['llm_calls']} | "

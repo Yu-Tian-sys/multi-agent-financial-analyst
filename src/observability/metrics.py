@@ -29,14 +29,16 @@ class Metrics:
             {total_traces, total_events, total_tokens, total_cost,
              avg_duration_per_trace, error_count, error_rate}
         """
-        # traces 表聚合：追踪数/事件数/耗时/错误（traces 表不记录 token/cost，
-        # 因为 _wrap 记录事件时不持有 LLM 调用的 token 数）
+        # traces 表聚合：追踪数/事件数/耗时/错误/token/cost
+        # _wrap 在每节点执行后写 token_delta/cost_delta 到 traces
         cursor = self.db.conn.execute(
             f"""
             SELECT
                 COUNT(DISTINCT trace_id) as total_traces,
                 COUNT(*) as total_events,
                 COALESCE(SUM(duration), 0.0) as total_duration,
+                COALESCE(SUM(tokens), 0) as total_tokens,
+                COALESCE(SUM(cost), 0.0) as total_cost,
                 SUM(CASE WHEN action = 'error' THEN 1 ELSE 0 END) as error_count
             FROM traces
             WHERE created_at > datetime('now', '-{days} day')
@@ -48,23 +50,11 @@ class Metrics:
         error_count = row["error_count"] or 0
         total_duration = row["total_duration"] or 0.0
 
-        # tokens/cost 从 tasks 表聚合（与 /cost 接口一致；traces 表无此数据）
-        cursor2 = self.db.conn.execute(
-            f"""
-            SELECT
-                COALESCE(SUM(total_tokens), 0) as total_tokens,
-                COALESCE(SUM(total_cost), 0.0) as total_cost
-            FROM tasks
-            WHERE created_at > datetime('now', '-{days} day')
-            """
-        )
-        row2 = cursor2.fetchone()
-
         return {
             "total_traces": total_traces,
             "total_events": total_events,
-            "total_tokens": row2["total_tokens"] or 0,
-            "total_cost": round(row2["total_cost"] or 0.0, 6),
+            "total_tokens": row["total_tokens"] or 0,
+            "total_cost": round(row["total_cost"] or 0.0, 6),
             "avg_duration_per_trace": round(total_duration / total_traces, 3) if total_traces > 0 else 0.0,
             "error_count": error_count,
             "error_rate": round(error_count / total_events, 4) if total_events > 0 else 0.0,
