@@ -17,6 +17,8 @@ import {
 import { useCompareTask, type CompareTaskHook } from '../hooks/useCompareTask'
 
 interface CompareViewProps {
+  /** 当前用户 ID（从 App 传入，避免硬编码） */
+  userId: string
   /** 返回对话模式 */
   onBack: () => void
 }
@@ -239,10 +241,10 @@ function ComparePanel({ hook, label, placeholder }: ComparePanelProps) {
 }
 
 /** 对比模式视图：左右两个面板独立分析 */
-export function CompareView({ onBack }: CompareViewProps) {
+export function CompareView({ userId, onBack }: CompareViewProps) {
   // 两次调用 hook，左右面板各自独立
-  const left = useCompareTask()
-  const right = useCompareTask()
+  const left = useCompareTask(userId)
+  const right = useCompareTask(userId)
 
   // AI 对比结论相关 state
   const [compareResult, setCompareResult] = useState<{ summary: string; tokens: number; cost: number } | null>(null)

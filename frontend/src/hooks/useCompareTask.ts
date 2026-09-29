@@ -47,7 +47,7 @@ export interface CompareTaskHook {
  * 封装：提交 → 轮询 → 终态停止 → 清理；外加下载报告
  * 两个面板各调用一次，互不影响
  */
-export function useCompareTask(): CompareTaskHook {
+export function useCompareTask(userId: string = 'web-user'): CompareTaskHook {
   const [topic, setTopic] = useState<string>('')
   const [submitting, setSubmitting] = useState<boolean>(false)
   const [taskId, setTaskId] = useState<string | null>(null)
@@ -138,7 +138,7 @@ export function useCompareTask(): CompareTaskHook {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         topic: t,
-        user_id: 'web-user',
+        user_id: userId,
         user_role: 'user',
       }),
       signal: controller.signal,

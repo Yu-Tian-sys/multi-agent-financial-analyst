@@ -89,6 +89,7 @@ function stageText(currentStep?: number): string {
  */
 function App() {
   const [topic, setTopic] = useState<string>('')
+  const [userId, setUserId] = useState<string>('web-user')
   const [submitting, setSubmitting] = useState<boolean>(false)
   const [taskId, setTaskId] = useState<string | null>(null)
   const [task, setTask] = useState<TaskInfo | null>(null)
@@ -265,7 +266,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: topicStr,
-          user_id: 'web-user',
+          user_id: userId,
           user_role: 'user',
         }),
       })
@@ -475,7 +476,7 @@ function App() {
       `}</style>
 
       {viewMode === 'compare' ? (
-        <CompareView onBack={() => setViewMode('chat')} />
+        <CompareView userId={userId} onBack={() => setViewMode('chat')} />
       ) : viewMode === 'observability' ? (
         <ObservabilityPanel onBack={() => setViewMode('chat')} />
       ) : (
@@ -733,6 +734,14 @@ function App() {
         <div
           className="flex gap-3 max-w-[920px] mx-auto items-end"
         >
+          <input
+            type="text"
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+            placeholder="用户 ID"
+            disabled={submitting}
+            className="input w-28 shrink-0"
+          />
           <input
             type="text"
             value={topic}
