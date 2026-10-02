@@ -19,6 +19,7 @@ import { EventTimeline, type TraceEvent } from './components/EventTimeline'
 import { HistorySidebar } from './components/HistorySidebar'
 import { CompareView } from './components/CompareView'
 import { ObservabilityPanel } from './components/ObservabilityPanel'
+import { EvaluationCenter } from './components/EvaluationCenter'
 import { ErrorBanner, WarningBanner } from './components/ui'
 
 // 任务状态枚举
@@ -47,7 +48,7 @@ const POLL_INTERVAL_MS = 2000
 const POLL_MAX_MS = 5 * 60 * 1000
 
 /** 带重试的 fetch：网络错误/5xx 退避重试，4xx 直接返回（业务错误不重试） */
-async function fetchWithRetry(input: string, init: RequestInit, retries = 2): Promise<Response> {
+async function fetchWithRetry(input: string, init: RequestInit = {}, retries = 2): Promise<Response> {
   let lastErr: unknown
   for (let i = 0; i <= retries; i++) {
     try {
@@ -73,23 +74,40 @@ function stageText(currentStep?: number): string {
   if (!currentStep || currentStep <= 0) return '正在准备分析...'
   const stages = [
     '正在准备分析...',
-    '正在收集数据...',
-    '正在分析数据...',
-    '正在验证数据...',
-    '正在多空辩论...',
-    '正在评估风险...',
-    '正在撰写报告...',
+    '规划分析方案',
+    '分析财务报表',
+    '分析新闻资讯',
+    '分析券商研报',
+    '验证数据准确性',
+    '多空观点辩论',
+    '评估投资风险',
+    '撰写投资报告',
+    '合规审查',
+    '运行评估体系',
+    '保存记忆...',
   ]
-  if (currentStep >= 7) return '正在合规审查...'
   return stages[currentStep] ?? '正在分析...'
 }
+
+/** 流水线阶段列表（用于步骤展示） */
+const PIPELINE_STAGES = [
+  { step: 1, label: '规划方案' },
+  { step: 2, label: '财务分析' },
+  { step: 3, label: '新闻分析' },
+  { step: 4, label: '研报分析' },
+  { step: 5, label: '数据验证' },
+  { step: 6, label: '多空辩论' },
+  { step: 7, label: '风险评估' },
+  { step: 8, label: '撰写报告' },
+  { step: 9, label: '合规审查' },
+]
 
 /**
  * 多 Agent 金融分析 Dashboard（对话式）
  */
 function App() {
   const [topic, setTopic] = useState<string>('')
-  const [userId, setUserId] = useState<string>('web-user')
+  const [userId] = useState<string>('web-user')
   const [submitting, setSubmitting] = useState<boolean>(false)
   const [taskId, setTaskId] = useState<string | null>(null)
   const [task, setTask] = useState<TaskInfo | null>(null)
@@ -104,7 +122,7 @@ function App() {
   // 历史列表刷新触发器（变化时 HistorySidebar 重新拉 /api/tasks）
   const [historyRefreshKey, setHistoryRefreshKey] = useState<number>(0)
   // 视图模式：对话 vs 对比
-  const [viewMode, setViewMode] = useState<'chat' | 'compare' | 'observability'>('chat')
+  const [viewMode, setViewMode] = useState<'chat' | 'compare' | 'observability' | 'evaluation'>('chat')
 
   const pollTimerRef = useRef<number | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
@@ -289,7 +307,9 @@ function App() {
   }
 
   async function submitAnalyze(): Promise<void> {
-    await submitWithTopic(topic.trim())
+    const t = topic.trim()
+    await submitWithTopic(t)
+    if (t) setTopic('')
   }
 
   // 重新分析：用当前 task 的 topic 再跑一次
@@ -443,6 +463,7 @@ function App() {
         onNew={handleNewChat}
         onCompare={() => setViewMode('compare')}
         onObservability={() => setViewMode('observability')}
+        onEvaluation={() => setViewMode('evaluation')}
         onDelete={handleDelete}
         refreshTrigger={historyRefreshKey}
       />
@@ -479,6 +500,8 @@ function App() {
         <CompareView userId={userId} onBack={() => setViewMode('chat')} />
       ) : viewMode === 'observability' ? (
         <ObservabilityPanel onBack={() => setViewMode('chat')} />
+      ) : viewMode === 'evaluation' ? (
+        <EvaluationCenter onBack={() => setViewMode('chat')} />
       ) : (
         <>
       {/* ========== 对话流 ========== */}
@@ -513,19 +536,57 @@ function App() {
           {/* 助手消息 */}
           {(task || error) && (
             <div className="msg-assistant">
-              {/* 分析中：脉动点 + 阶段文字 / 精致进度条 + 百分比 */}
+              {/* 分析中：步骤列表 + 进度条 */}
               {task && isProcessing && (
                 <div>
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="dot-pulse w-2 h-2 rounded-full bg-accent shrink-0"
-                    />
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className="dot-pulse w-2 h-2 rounded-full bg-accent shrink-0" />
                     <span className="text-[15px] text-fg font-medium">
                       {stageText(task.current_step)}
                     </span>
                   </div>
+
+                  {/* 流水线步骤 */}
+                  <div className="flex items-center gap-1 mb-4 flex-wrap">
+                    {PIPELINE_STAGES.map((s, i) => {
+                      const done = task.current_step > s.step
+                      const active = task.current_step === s.step
+                      return (
+                        <div key={s.step} className="flex items-center gap-1">
+                          <div
+                            className={[
+                              'flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-colors',
+                              done
+                                ? 'bg-success/15 text-success'
+                                : active
+                                  ? 'bg-accent/15 text-accent'
+                                  : 'bg-divider text-muted',
+                            ].join(' ')}
+                          >
+                            {done ? (
+                              <CheckCircle2 size={11} />
+                            ) : active ? (
+                              <Loader2 size={11} className="animate-spin" />
+                            ) : (
+                              <span className="w-[11px] h-[11px] rounded-full border border-current opacity-40" />
+                            )}
+                            {s.label}
+                          </div>
+                          {i < PIPELINE_STAGES.length - 1 && (
+                            <div
+                              className={[
+                                'w-3 h-px',
+                                done ? 'bg-success/40' : 'bg-divider',
+                              ].join(' ')}
+                            />
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+
                   {task.total_steps > 0 && (
-                    <div className="flex items-center gap-3 mt-4">
+                    <div className="flex items-center gap-3">
                       <div className="flex-1 h-1.5 rounded-full bg-divider overflow-hidden">
                         <div
                           className="h-full rounded-full bg-[linear-gradient(90deg,#58a6ff,#79c0ff)] shadow-[0_0_8px_rgba(88,166,255,0.5)]"
@@ -535,9 +596,7 @@ function App() {
                           }}
                         />
                       </div>
-                      <span
-                        className="stat-value text-xs text-fg2 min-w-10 text-right"
-                      >
+                      <span className="stat-value text-xs text-fg2 min-w-10 text-right">
                         {progressPct}%
                       </span>
                     </div>
@@ -734,14 +793,6 @@ function App() {
         <div
           className="flex gap-3 max-w-[920px] mx-auto items-end"
         >
-          <input
-            type="text"
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-            placeholder="用户 ID"
-            disabled={submitting}
-            className="input w-28 shrink-0"
-          />
           <input
             type="text"
             value={topic}

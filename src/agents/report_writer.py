@@ -20,7 +20,7 @@ _client = OpenAI(
 REPORT_PROMPT = """你是一个专业的金融分析师，需要撰写一份投资研究报告。
 
 【标的信息】
-{topic}（{company_type}）
+{company_name}（{symbol}，{company_type}）
 
 【财务数据】
 {financial}
@@ -41,7 +41,7 @@ REPORT_PROMPT = """你是一个专业的金融分析师，需要撰写一份投�
 
 请撰写一份结构化的投资研究报告，包含以下部分：
 
-# {topic} 投资研究报告
+# {company_name}（{symbol}）投资研究报告
 
 ## 一、公司概况
 （一段话介绍）
@@ -176,8 +176,12 @@ def report_writer_node(state: FinanceState) -> dict:
         risk_factors = "\n".join(f"- {r}" for r in ra.get("risk_factors", [])) or "无"
 
         # 2. 生成报告
+        company_name = state.get("company_name") or topic
+        symbol = state.get("symbol") or topic
         prompt = REPORT_PROMPT.format(
             topic=topic,
+            symbol=symbol,
+            company_name=company_name,
             company_type=state.get("company_type", "未知"),
             financial=financial,
             news=news,

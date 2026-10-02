@@ -1,10 +1,14 @@
 import asyncio
 import logging
+import os
 import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect, Request
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 
 from src.config import settings
@@ -40,6 +44,50 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+
+# ========================================
+# 生产环境静态前端服务（Docker 部署用）
+# ========================================
+
+# 前端构建产物目录（多阶段 Docker 构建会把 frontend/dist 复制到这里）
+FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+
+
+class StripApiPrefixMiddleware(BaseHTTPMiddleware):
+    """
+    剥离 /api 前缀中间件
+
+    前端代码统一用 /api/xxx 调用后端，开发环境由 vite proxy 转发；
+    生产环境（Docker）前后端同源，此中间件把 /api/analyze 重写为 /analyze。
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        if request.url.path.startswith("/api/"):
+            # 重写路径（保留 query string）
+            new_path = request.url.path[4:]  # 去掉 "/api"
+            request.scope["path"] = new_path
+            request.scope["raw_path"] = new_path.encode()
+        response = await call_next(request)
+        return response
+
+
+app.add_middleware(StripApiPrefixMiddleware)
+
+
+def _mount_frontend() -> None:
+    """挂载前端静态文件（仅当 dist 目录存在时，即生产环境）"""
+    if os.path.isdir(FRONTEND_DIST):
+        # 静态资源（js/css/图片等）
+        assets_dir = os.path.join(FRONTEND_DIST, "assets")
+        if os.path.isdir(assets_dir):
+            app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+        logger.info(f"[main] 已挂载前端静态资源：{FRONTEND_DIST}")
+    else:
+        logger.info(f"[main] 前端 dist 不存在，跳过静态挂载（开发模式）：{FRONTEND_DIST}")
+
+
+_mount_frontend()
 
 
 # ========================================
@@ -402,6 +450,77 @@ def overview():
 
     m = Metrics(db)
     return {"report": overview_report(m)}
+
+
+# ========================================
+# 评估接口
+# ========================================
+
+class EvaluateRequest(BaseModel):
+    """评估请求"""
+    tickers: list[str] = []
+
+
+@app.post("/evaluate")
+def evaluate(req: EvaluateRequest):
+    """
+    运行 Agent 评估（五维度）
+
+    Args:
+        tickers: 股票代码列表，为空时使用默认 8 只蓝筹股
+
+    Returns:
+        评估结果（Markdown 报告 + 结构化数据）
+    """
+    from src.evaluation import evaluate_batch, generate_markdown_report, DEFAULT_TICKERS
+
+    # Web 端默认只跑 3 只（各市场一只），避免请求超时；完整 8 只走 CLI
+    WEB_DEFAULT_TICKERS = ["600519", "AAPL", "00700.HK"]
+    tickers = req.tickers if req.tickers else WEB_DEFAULT_TICKERS
+    try:
+        evaluations = evaluate_batch(tickers)
+        report = generate_markdown_report(evaluations)
+        # 结构化数据（供前端渲染）
+        results = []
+        for se in evaluations:
+            results.append({
+                "symbol": se.symbol,
+                "market": se.market,
+                "overall_score": round(se.overall_score, 4),
+                "all_passed": se.all_passed,
+                "dimensions": [
+                    {
+                        "name": r.name,
+                        "score": r.score,
+                        "passed": r.passed,
+                        "message": r.message,
+                        "details": r.details,
+                    }
+                    for r in se.results
+                ],
+            })
+        return {"report": report, "results": results}
+    except Exception as e:
+        logger.error(f"[main] 评估失败：{e}")
+        raise HTTPException(status_code=500, detail=f"评估失败：{e}")
+
+
+# ========================================
+# SPA 回退（必须放在所有路由之后）
+# ========================================
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def spa_fallback(full_path: str):
+    """
+    SPA 回退路由：非 API 路径返回 index.html（支持前端路由刷新）
+
+    仅在前端 dist 存在时生效；开发模式下由 vite 处理。
+    必须放在所有具体路由之后，否则会拦截 API 请求。
+    """
+    index_path = os.path.join(FRONTEND_DIST, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
+    raise HTTPException(status_code=404, detail="Not Found")
 
 
 # ========================================

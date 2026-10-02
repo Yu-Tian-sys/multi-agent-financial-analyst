@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# 构建产物（前端由 Docker 内构建）
+frontend/dist/
+
+# 数据
+data/
+*.db
+*.sqlite
+chroma/
+
+# 输出
+output/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# 文档（可选排除，减小镜像）
+docs/
+*.md
+!README.md
+
+# 其他
+.env
+.env.local
+scripts/
+tests/

@@ -23,8 +23,10 @@ class FinanceState(TypedDict):
     task_id: str          # 任务唯一 ID（UUID）
     user_id: str          # 用户 ID
     user_role: str        # 用户角色：guest / user / admin
-    topic: str            # 股票代码或行业名称
+    topic: str            # 用户原始输入（股票代码或公司名称）
+    symbol: str           # 解析后的标准股票代码（如 688981、AAPL、00700.HK）
     company_type: str     # 公司类型：科技 / 银行 / 消费 / 医药 / 其他
+    company_name: str     # 公司简称（如 比亚迪、Apple Inc.）
 
     # 【任务规划】
     subtasks: list        # 子任务列表，每项 {id, task, status}
@@ -63,6 +65,9 @@ class FinanceState(TypedDict):
     # passed: bool
     # issues: list
 
+    # 【评估】
+    evaluation_result: dict   # 五维度评估结果（流水线完成后自动生成）
+
     # 【消息与状态】
     messages: Annotated[list, operator.add]  # 消息历史，自动追加
     status: Annotated[str, _keep_status]  # pending / running / completed / failed / rejected（并行取最严重）
@@ -81,7 +86,9 @@ def create_initial_state(task_id: str, user_id: str, user_role: str, topic: str)
         user_id=user_id,
         user_role=user_role,
         topic=topic,
+        symbol="",
         company_type="",
+        company_name="",
         subtasks=[],
         current_step=0,
         total_steps=0,
@@ -97,6 +104,7 @@ def create_initial_state(task_id: str, user_id: str, user_role: str, topic: str)
         final_report="",
         report_references=[],
         compliance_result={},
+        evaluation_result={},
         messages=[],
         status="pending",
         error="",

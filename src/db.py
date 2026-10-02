@@ -196,11 +196,20 @@ class Database:
         return [dict(row) for row in cursor.fetchall()]
 
     def delete_task(self, task_id: str) -> bool:
-        """删除指定任务。返回 True 表示删掉了，False 表示该任务不存在。
+        """删除指定任务及其所有关联数据（消息、trace、成本日志、工具调用）。
 
         Args:
             task_id: 任务 ID
+
+        Returns:
+            True 表示删掉了，False 表示该任务不存在。
         """
+        # 级联删除关联数据（traces / messages / cost_log / tool_calls）
+        for table in ("traces", "messages", "cost_log", "tool_calls"):
+            try:
+                self.conn.execute(f"DELETE FROM {table} WHERE task_id = ?", (task_id,))
+            except Exception:
+                pass
         cursor = self.conn.execute("DELETE FROM tasks WHERE task_id = ?", (task_id,))
         self.conn.commit()
         return cursor.rowcount > 0

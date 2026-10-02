@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     model_expensive: str = "deepseek-reasoner"                    # 昂贵层模型（报告撰写/主持人裁决）
     llm_mock: bool = False                                        # mock 模式开关（True 时不调真实 API）
 
+    # 端到端评估
+    enable_evaluation: bool = True                                # 流水线完成后自动运行五维度评估
+
     class Config:
         env_file = ".env"
         case_sensitive = False

@@ -19,3 +19,6 @@ httpx
 pytest
 pytest-asyncio
 tenacity
+akshare
+yfinance
+pandas

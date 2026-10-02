@@ -184,7 +184,9 @@ def planner_node(state: FinanceState) -> dict:
             "company_type": company_type,
             "subtasks": subtasks,
             "current_step": 1,
-            "total_steps": len(subtasks),
+            # 完整流水线步数：planner + financial + news + report + validator
+            # + debate + risk + writer + compliance = 9
+            "total_steps": 9,
             "status": "running",
             "total_tokens": state.get("total_tokens", 0) + total_tokens,
             "total_cost": state.get("total_cost", 0.0) + total_cost,

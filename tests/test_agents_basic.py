@@ -113,7 +113,7 @@ def test_parse_metrics_to_numbers():
 
 
 def test_financial_analyst_node():
-    """测试财报分析节点（用 mock 文本）"""
+    """测试财报分析节点（真实数据）"""
     state = create_initial_state("t1", "u1", "user", "AAPL")
     result = financial_analyst_node(state)
     assert result["status"] == "running"
@@ -121,13 +121,15 @@ def test_financial_analyst_node():
     fd = result["financial_data"]
     assert "metrics" in fd
     assert "ratios" in fd
-    assert fd["metrics"]["revenue"] == 3832.0
+    # 真实数据：营收应大于 0
+    assert fd["metrics"].get("revenue", 0) > 0
     assert fd["ratios"]["net_margin"] > 0
 
 
 def test_financial_analyst_unknown_topic():
-    """测试未知公司用 default mock"""
+    """测试未知公司优雅降级"""
     state = create_initial_state("t1", "u1", "user", "UNKNOWN_COMPANY_XYZ")
     result = financial_analyst_node(state)
     assert result["status"] == "running"
-    assert result["financial_data"]["metrics"]["revenue"] == 100.0
+    # 未知公司降级处理，metrics 可能为空但不应报错
+    assert "financial_data" in result

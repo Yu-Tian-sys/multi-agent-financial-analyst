@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, BarChart3, GitCompare, Plus, Trash2 } from 'lucide-react'
+import { Activity, BarChart3, Gauge, GitCompare, Plus, Trash2 } from 'lucide-react'
 import { StatusDot } from './StatusDot'
 
 // 历史任务条目（GET /api/tasks 返回的单条结构）
@@ -23,6 +23,8 @@ interface HistorySidebarProps {
   onCompare: () => void
   /** 点击「可观测性」时回调 */
   onObservability: () => void
+  /** 点击「评估中心」时回调 */
+  onEvaluation: () => void
   /** 点击删除按钮时回调 */
   onDelete: (taskId: string) => void
   /** 变化时重新拉取列表 */
@@ -51,7 +53,7 @@ function statusColor(s: string): string {
   return '#6e7681'
 }
 
-export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, onObservability, onDelete, refreshTrigger }: HistorySidebarProps) {
+export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, onObservability, onEvaluation, onDelete, refreshTrigger }: HistorySidebarProps) {
   const [tasks, setTasks] = useState<HistoryTask[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
@@ -110,6 +112,11 @@ export function HistorySidebar({ currentTaskId, onSelect, onNew, onCompare, onOb
       {/* 可观测性按钮 */}
       <button onClick={onObservability} className="history-new-btn">
         <BarChart3 size={14} /> 可观测性
+      </button>
+
+      {/* 评估中心按钮 */}
+      <button onClick={onEvaluation} className="history-new-btn">
+        <Gauge size={14} /> 评估中心
       </button>
 
       {/* 历史列表 */}

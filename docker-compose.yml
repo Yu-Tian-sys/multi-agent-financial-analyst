@@ -1,0 +1,52 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: ma-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ma-backend
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      - REDIS_URL=redis://redis:6379
+      - DB_PATH=/app/data/agent.db
+      - CHROMA_PATH=/app/data/chroma
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENV=production
+      - MODEL_CHEAP=${MODEL_CHEAP:-deepseek-chat}
+      - MODEL_EXPENSIVE=${MODEL_EXPENSIVE:-deepseek-reasoner}
+      - LLM_MOCK=${LLM_MOCK:-false}
+      - ENABLE_EVALUATION=${ENABLE_EVALUATION:-true}
+    volumes:
+      - app-data:/app/data
+      - app-output:/app/output
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  redis-data:
+  app-data:
+  app-output:

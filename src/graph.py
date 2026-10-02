@@ -18,6 +18,7 @@ from src.agents.debate import debate_node
 from src.agents.risk import risk_node
 from src.agents.report_writer import report_writer_node
 from src.agents.compliance import compliance_node
+from src.agents.evaluation import evaluation_node
 from src.memory.integration import recall_node, save_node
 from src.observability.tracer import Tracer
 
@@ -143,11 +144,18 @@ def build_graph() -> StateGraph:
             new_cost = result.get("total_cost", prev_cost) if result else prev_cost
             token_delta = max(0, int(new_tokens) - int(prev_tokens))
             cost_delta = max(0.0, float(new_cost) - float(prev_cost))
+            # 若本节点消耗了 token，额外记录一条 llm_call 事件（供可观测性按 Agent 统计 LLM 调用数）
+            if token_delta > 0:
+                _tracer.log_event(trace_id, agent_name, "llm_call",
+                                  content=f"tokens={token_delta}",
+                                  tokens=token_delta,
+                                  cost=cost_delta,
+                                  task_id=trace_id)
             _tracer.log_event(trace_id, agent_name, "end",
                               content=f"status={result.get('status', '')}",
                               duration=elapsed,
-                              tokens=token_delta,
-                              cost=cost_delta,
+                              tokens=0,
+                              cost=0.0,
                               task_id=trace_id)
             # 累加成本到熔断器内存表（供 precheck._check_cost_limit 判定）
             if cost_delta > 0:
@@ -184,6 +192,7 @@ def build_graph() -> StateGraph:
     graph.add_node("risk", _wrap("risk", risk_node))
     graph.add_node("writer", _wrap("writer", report_writer_node))
     graph.add_node("compliance", _wrap("compliance", compliance_node))
+    graph.add_node("evaluation", _wrap("evaluation", evaluation_node))
     graph.add_node("memory_save", _wrap("memory_save", _save_wrapper))
     graph.add_node("finalize", _wrap("finalize", finalize_node))
 
@@ -218,7 +227,8 @@ def build_graph() -> StateGraph:
     graph.add_edge("debate", "risk")
     graph.add_edge("risk", "writer")
     graph.add_edge("writer", "compliance")
-    graph.add_edge("compliance", "memory_save")
+    graph.add_edge("compliance", "evaluation")
+    graph.add_edge("evaluation", "memory_save")
     graph.add_edge("memory_save", "finalize")
     graph.add_edge("finalize", END)
 

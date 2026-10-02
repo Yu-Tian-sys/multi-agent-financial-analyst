@@ -154,6 +154,12 @@ def precheck_node(state: FinanceState) -> dict:
     # 清洗输入
     clean_topic = sanitize_input(topic)
 
+    # 解析股票代码（公司名 → 代码，如 中芯国际 → 688981）
+    from src.data.router import resolve_symbol
+    symbol = resolve_symbol(clean_topic)
+    if symbol != clean_topic:
+        logger.info(f"[precheck] 股票代码解析：{clean_topic} → {symbol}")
+
     # 2. 权限检查（预检本身不需要调工具，但检查角色是否合法）
     if user_role not in ["guest", "user", "admin"]:
         return {
@@ -177,6 +183,7 @@ def precheck_node(state: FinanceState) -> dict:
 
     return {
         "topic": clean_topic,
+        "symbol": symbol,
         "status": "running",
         "error": "",
         "messages": [{"role": "system", "content": f"预检通过：{clean_topic}"}]

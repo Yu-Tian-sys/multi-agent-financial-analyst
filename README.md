@@ -5,6 +5,8 @@
 ## 核心特性
 
 - **9 个专业 Agent 协作**：合规预检、任务规划、财报分析、新闻分析、研报分析、数据验证、多空辩论、风控、报告撰写+合规审查
+- **真实市场数据**：A股（AKShare）、美股/港股（yfinance）自动路由，覆盖行情、估值、财报、分析师评级、新闻
+- **五维度 Agent 评估体系**：财务准确率 / 风险一致性 / 报告完整性 / 分析师共识对比 / 辩论质量（LLM-as-judge），量化衡量 Agent 输出质量
 - **多空辩论机制**：多头研究员 vs 空头研究员，主持人裁决，减少单一视角偏见
 - **并行数据收集**：财务、新闻、研报三路并行，LangGraph Send fan-out
 - **交叉验证**：三源信号对比，自动发现矛盾
@@ -17,7 +19,7 @@
 - **审计日志**：所有操作记录到 SQLite
 - **Docker 沙箱**：代码执行禁网、限内存、限 CPU、只读文件系统
 - **限流 + 成本熔断**：每用户每分钟/每日请求上限 + 每日成本上限
-- **FastAPI 服务**：异步流水线，10 个 REST 接口 + WebSocket 实时推送
+- **FastAPI 服务**：异步流水线，11 个 REST 接口 + WebSocket 实时推送
 
 ## 架构
 
@@ -99,6 +101,45 @@ npm run dev
 
 ---
 
+## Docker 部署（推荐生产环境）
+
+一键启动后端 + Redis，前端已内置于后端镜像（FastAPI 静态服务）。
+
+**1. 配置环境变量**
+
+```bash
+cp .env.example .env
+# 编辑 .env，至少填入 DEEPSEEK_API_KEY
+```
+
+**2. 构建并启动**
+
+```bash
+docker-compose up -d --build
+```
+
+**3. 访问**
+
+- 前端 + API：http://localhost:8000
+- API 文档：http://localhost:8000/docs
+- 健康检查：http://localhost:8000/health
+
+**4. 常用命令**
+
+```bash
+docker-compose logs -f backend    # 查看后端日志
+docker-compose down               # 停止并删除容器
+docker-compose down -v            # 同时删除数据卷（清空数据库）
+```
+
+**说明**：
+- 数据持久化：SQLite 和 ChromaDB 存储在 `app-data` volume
+- Redis：限流用，独立容器
+- 健康检查：backend 每 30s 探活 `/health`
+- 前端构建：Docker 多阶段构建内自动 `npm run build`，无需本地 Node
+
+---
+
 ## API 使用
 
 提交分析任务：
@@ -137,6 +178,22 @@ curl http://127.0.0.1:8000/overview
 - `GET /metrics` — 今日任务统计
 - `GET /cost` — 今日成本统计
 
+运行 Agent 评估（五维度）：
+
+```bash
+curl -X POST http://127.0.0.1:8000/evaluate \
+  -H "Content-Type: application/json" \
+  -d '{"tickers": ["AAPL", "600519", "00700.HK"]}'
+# 返回 {"report": "...", "results": [...]}
+# tickers 为空时使用默认 8 只蓝筹股：茅台/招行/宁德/苹果/微软/谷歌/腾讯/美团
+```
+
+也可以用 CLI 跑批评估并生成 Markdown 报告：
+
+```bash
+python -m src.evaluation.evaluate --tickers AAPL,600519,00700.HK --output docs/evaluation_report.md
+```
+
 ## 流水线
 
 ```text
@@ -151,9 +208,39 @@ curl http://127.0.0.1:8000/overview
   → 风控（风险识别+定级+合规提示）
   → 报告撰写（结构化+引用来源）
   → 合规审查（规则+LLM 双重）
+  → 五维度评估（财务准确率/风险一致性/报告完整性/分析师共识/辩论质量）
   → 记忆保存（抽取事实存 SQLite）
   → 输出报告
 ```
+
+## 数据层（真实市场数据）
+
+所有市场数据已从 Mock 切换为真实 API，通过 `MarketRouter` 自动识别市场并路由到对应 Provider。
+
+| 市场 | Provider | 数据源 | 覆盖内容 |
+|------|----------|--------|----------|
+| A 股 | `AStockProvider` | AKShare（免费） | 行情、PE/PB/PS 估值、三大财报、分析师评级、新闻 |
+| 美股 | `USStockProvider` | yfinance | 行情、PE/PB/PS 估值、财报、新闻 |
+| 港股 | `HKStockProvider` | yfinance | 行情、估值、财报、新闻 |
+
+- 路由规则：`600519`/`000001` → A 股；`AAPL`/`MSFT` → 美股；`00700.HK` → 港股
+- 统一财报结构 `FinancialStatements`（营收/净利润/毛利率/净利率/ROE/资产负债率），跨市场可比
+- 估值数据含 TTM 变体（`PE_TTM`、`PB`、`PS_TTM`）
+- 工具层封装：`market_data.py`（行情+估值）、`news_search.py`（新闻）、`report_search.py`（分析师评级）
+
+## 评估体系（五维度）
+
+`src/evaluation/` 提供 Agent 输出质量的量化评估，5 个维度各自独立打分（0~1），综合得分取平均。
+
+| 维度 | 评估内容 | 通过阈值 | 实现 |
+|------|----------|----------|------|
+| 财务指标准确率 | 报告中的营收/净利润/PE/PB 等与真实数据的偏差率 | ≥ 0.6 | 数值比对，容差 20% |
+| 风险评级一致性 | Agent 给出的风险等级与基于财务指标的规则风险是否一致 | ≥ 0.6 | 负债率/净利率/关键词规则 vs Agent 结论 |
+| 报告完整性 | 6 大章节（摘要/财务/新闻/研报/风险/结论）是否齐全 | ≥ 0.6 | 章节关键词匹配 |
+| 分析师共识对比 | Agent 评级与市场分析师一致评级的偏离度 | ≥ 0.5 | 买入/增持/中性/减持/卖出 5 档映射 |
+| 辩论质量 | 多空辩论的逻辑深度、论据支撑、反驳力度 | ≥ 0.6 | LLM-as-judge（deepseek-reasoner） |
+
+**Benchmark**：8 只蓝筹股（茅台/招行/宁德/苹果/微软/谷歌/腾讯/美团）的实测评估结果见 [docs/benchmark_data.md](docs/benchmark_data.md)。
 
 ## 三层记忆
 
@@ -178,16 +265,20 @@ curl http://127.0.0.1:8000/overview
 - FastAPI（服务层）
 - SQLite（状态持久化 + 追踪）
 - ChromaDB（语义记忆）
-- Docker（沙箱）
+- Docker（沙箱 + 容器化部署）
+- Docker Compose（多服务编排：backend + redis）
 - DeepSeek API（LLM）
 - sentence-transformers（本地嵌入）
+- AKShare（A 股数据，免费）
+- yfinance（美股/港股数据）
+- pandas（数据处理）
 
 ## 测试
 
 ```bash
 # 后端全部测试
 pytest tests/ -v
-# 130 passed, 2 deselected (e2e)
+# 138 passed, 2 deselected (e2e)
 
 # 端到端回归（3 个标的，约 5-6 分钟）
 python scripts/regression.py
@@ -260,14 +351,17 @@ multi-agent-financial-analyst/
 │   ├── config.py             # 配置管理
 │   ├── db.py                 # SQLite 持久化（WAL + 锁）
 │   ├── graph.py              # LangGraph 编排 + Tracer 集成
-│   ├── main.py               # FastAPI 服务（10 个接口）
+│   ├── main.py               # FastAPI 服务（11 个接口）
 │   ├── agents/               # 9 个 Agent
-│   ├── tools/                # 6 个工具 + 注册表
+│   ├── tools/                # 6 个工具 + 注册表（market_data/news_search/report_search 已接真实数据）
+│   ├── data/                 # 数据层：MarketRouter + AStock/USStock/HKStock Provider
+│   ├── evaluation/           # 五维度评估体系（financial_accuracy/risk_consistency/.../evaluate）
 │   ├── safety/               # 防注入+权限+审计+沙箱
 │   ├── memory/               # 三层记忆
 │   └── observability/        # Tracer + Metrics + Dashboard
-├── tests/                    # 130 个后端测试
+├── tests/                    # 138 个后端测试
 ├── frontend/src/test/        # 16 个前端组件测试（vitest）
+├── frontend/src/components/  # EvaluationCenter 评估中心页面
 ├── scripts/
 │   └── regression.py         # 端到端回归脚本
 ├── docs/                     # 架构文档
@@ -298,6 +392,12 @@ LangGraph 并行节点在不同线程同时写 traces 表，SQLite 单连接多�
 **为什么风险评估用规则+LLM 混合？**
 LLM 有随机性，同一标的两次跑可能给出不同风险等级。规则部分保证下限（负债率、净利率、关键词），LLM 部分提供深度分析。
 
+**为什么数据层用 MarketRouter + 多 Provider？**
+A 股、美股、港股数据源不同（AKShare vs yfinance），接口字段也不同。用 `MarketRouter` 按代码规则自动路由，`MarketDataProvider` 抽象基类统一返回 `FinancialStatements`/`ValuationData` 结构，上层 Agent 无需关心市场差异。新增市场只需实现一个 Provider。
+
+**为什么评估体系拆成 5 个独立维度？**
+金融分析报告的质量不是单一分数能衡量的。财务数值错了（准确率）和论据没逻辑（辩论质量）是两类问题，分开打分才能定位 Agent 短板，也便于针对性优化。阈值分档（0.5/0.6）是基于实际跑出来的分布设定的。
+
 ## 状态
 
 开发中。已完成：
@@ -306,14 +406,13 @@ LLM 有随机性，同一标的两次跑可能给出不同风险等级。规则�
 - LangGraph 流水线跑通
 - 三层记忆架构
 - 完整可观测性
-- FastAPI 服务 10 个 REST 接口 + WebSocket 实时推送
-- 130 个后端测试 + 16 个前端组件测试全通过
+- FastAPI 服务 11 个 REST 接口 + WebSocket 实时推送
+- 真实市场数据层（A 股 AKShare + 美股/港股 yfinance，自动路由）
+- 五维度 Agent 评估体系 + 前端评估中心页面
+- 端到端 pipeline 集成评估（报告生成后自动跑五维度评估，结果存入 state）
+- Docker 一键部署（多阶段构建 + docker-compose，前后端同源 + Redis）
+- 138 个后端测试 + 16 个前端组件测试全通过
 - 端到端回归 100% 成功
-
-规划中：
-
-- 成本控制（模型路由 + 语义缓存 + 历史压缩）
-- Docker 部署（docker-compose 一键启动）
 
 ## License
 
@@ -348,6 +447,7 @@ cd frontend && npm run dev
 - trace Mermaid 时序图（源码 + mermaid.live 外链，零依赖）
 - trace 事件时间线（按事件顺序展开/折叠查看 content）
 - 可观测性看板（独立视图：今日任务数 / 成功失败 / 平均 tokens / 总成本 + 全局概览 Markdown 报告）
+- **评估中心**（独立视图：五维度 Agent 评估 — 汇总卡片 + 标的评分表 + 每只股票 5 维度详情，颜色按得分阈值分级）
 - 对比模式（双任务独立提交 + AI 对比总结）
 - 历史记录侧边栏（点击加载、悬停删除、相对时间）
 - 网络错误自动重试（5xx/断网退避重试，4xx 不重试）
