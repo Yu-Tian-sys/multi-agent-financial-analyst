@@ -243,15 +243,30 @@ class AStockProvider(MarketDataProvider):
             df = ak.stock_news_em(symbol=code)
             if df is None or df.empty:
                 return []
+
+            # 获取公司名，用于过滤不相关新闻（新股接口常混入同期其他新股）
+            company_name = self.get_company_name(symbol)
+            # 过滤关键词：公司名 + 股票代码（去掉前导0的变体也试一下）
+            keywords = [company_name, code, code.lstrip("0")]
+            keywords = [k for k in keywords if k and k != symbol]
+
             items = []
-            for _, row in df.head(limit).iterrows():
+            for _, row in df.iterrows():
+                title = str(row.get("新闻标题", ""))
+                content = str(row.get("新闻内容", ""))
+                text = title + " " + content
+                # 过滤：标题或内容必须包含公司名或代码
+                if keywords and not any(k in text for k in keywords):
+                    continue
                 items.append(NewsItem(
-                    title=str(row.get("新闻标题", "")),
+                    title=title,
                     source=str(row.get("文章来源", "")),
                     date=str(row.get("发布时间", "")),
-                    content=str(row.get("新闻内容", "")),
+                    content=content,
                     url=str(row.get("新闻链接", "")),
                 ))
+                if len(items) >= limit:
+                    break
             return items
         except Exception as e:
             logger.warning(f"[astock] 新闻获取失败 {code}: {e}")

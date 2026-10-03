@@ -50,6 +50,7 @@ function statusColor(s: string): string {
   if (s === 'running' || s === 'pending') return '#58a6ff'
   if (s === 'failed') return '#f85149'
   if (s === 'rejected') return '#d29922'
+  if (s === 'need_confirm') return '#e3b341'
   return '#6e7681'
 }
 

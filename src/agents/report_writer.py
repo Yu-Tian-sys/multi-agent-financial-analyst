@@ -22,8 +22,16 @@ REPORT_PROMPT = """你是一个专业的金融分析师，需要撰写一份投�
 【标的信息】
 {company_name}（{symbol}，{company_type}）
 
+注意：上述股票代码与公司名称的对应关系已确认，请勿在报告中质疑两者的关联性。
+
 【财务数据】
 {financial}
+
+【同比增速】
+{yoy}
+
+【估值指标】
+{valuation}
 
 【新闻情绪】
 {news}
@@ -47,19 +55,22 @@ REPORT_PROMPT = """你是一个专业的金融分析师，需要撰写一份投�
 （一段话介绍）
 
 ## 二、财务分析
-（引用具体数据）
+（引用具体数据，必须包含同比增速分析）
 
-## 三、市场情绪
+## 三、估值分析
+（基于 PE/PB/市值等指标，分析当前估值水平）
+
+## 四、市场情绪
 （基于新闻和研报）
 
-## 四、多空观点
+## 五、多空观点
 ### 多头观点
 ### 空头观点
 
-## 五、风险提示
+## 六、风险提示
 （必须引用上面的风险因素）
 
-## 六、综合结论
+## 七、综合结论
 （基于辩论裁决给出）
 
 要求：
@@ -67,6 +78,7 @@ REPORT_PROMPT = """你是一个专业的金融分析师，需要撰写一份投�
 2. 不得给出明确的买卖建议
 3. 必须包含风险提示
 4. 使用 Markdown 格式
+5. 不要质疑股票代码与公司名称的对应关系
 
 只输出报告内容。"""
 
@@ -159,6 +171,36 @@ def report_writer_node(state: FinanceState) -> dict:
         if fd.get("ratios"):
             financial += f"\n比率：{json.dumps(fd['ratios'], ensure_ascii=False)}"
 
+        # 同比增速
+        yoy = json.dumps(fd.get("yoy", {}), ensure_ascii=False) if fd.get("yoy") else "无"
+
+        # 估值指标
+        val = fd.get("valuation", {})
+        if val:
+            val_parts = []
+            if "pe_ttm" in val:
+                val_parts.append(f"PE(TTM): {val['pe_ttm']}")
+            elif "pe" in val:
+                val_parts.append(f"PE(静): {val['pe']}")
+            if "pb" in val:
+                val_parts.append(f"PB: {val['pb']}")
+            if "ps_ttm" in val:
+                val_parts.append(f"PS(TTM): {val['ps_ttm']}")
+            elif "ps" in val:
+                val_parts.append(f"PS(静): {val['ps']}")
+            if "market_cap" in val:
+                mc = val["market_cap"]
+                # A 股 AKShare 返回亿元；美股/港股 yfinance 返回原始货币单位
+                if mc >= 1e12:
+                    val_parts.append(f"总市值: {round(mc/1e12, 2)}万亿")
+                elif mc >= 1e8:
+                    val_parts.append(f"总市值: {round(mc/1e8, 2)}亿元")
+                else:
+                    val_parts.append(f"总市值: {round(mc, 2)}亿元")
+            valuation = "，".join(val_parts)
+        else:
+            valuation = "暂无估值数据"
+
         news = "\n".join(f"- [{n.get('sentiment', '')}] {n.get('title', '')}"
                          for n in state.get("news_data", [])[:5]) or "无"
 
@@ -184,6 +226,8 @@ def report_writer_node(state: FinanceState) -> dict:
             company_name=company_name,
             company_type=state.get("company_type", "未知"),
             financial=financial,
+            yoy=yoy,
+            valuation=valuation,
             news=news,
             reports=reports,
             debate=debate,

@@ -155,8 +155,27 @@ def precheck_node(state: FinanceState) -> dict:
     clean_topic = sanitize_input(topic)
 
     # 解析股票代码（公司名 → 代码，如 中芯国际 → 688981）
-    from src.data.router import resolve_symbol
-    symbol = resolve_symbol(clean_topic)
+    from src.data.router import resolve_symbol_detailed
+    resolved = resolve_symbol_detailed(clean_topic)
+    symbol = resolved["symbol"]
+    match_type = resolved["match_type"]
+    matched_name = resolved["matched_name"]
+
+    # 模糊匹配需反问用户确认
+    if match_type == "fuzzy":
+        logger.info(f"[precheck] 模糊匹配需确认：{clean_topic} → {matched_name}({symbol})")
+        return {
+            "status": "need_confirm",
+            "topic": clean_topic,
+            "symbol": symbol,
+            "matched_name": matched_name,
+            "match_type": match_type,
+            "messages": [{
+                "role": "system",
+                "content": f"检测到你输入的「{clean_topic}」可能是「{matched_name}（{symbol}）」，是否确认分析该标的？"
+            }]
+        }
+
     if symbol != clean_topic:
         logger.info(f"[precheck] 股票代码解析：{clean_topic} → {symbol}")
 

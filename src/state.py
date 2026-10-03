@@ -25,6 +25,8 @@ class FinanceState(TypedDict):
     user_role: str        # 用户角色：guest / user / admin
     topic: str            # 用户原始输入（股票代码或公司名称）
     symbol: str           # 解析后的标准股票代码（如 688981、AAPL、00700.HK）
+    matched_name: str     # 模糊匹配到的公司名（用于反问用户确认）
+    match_type: str       # 匹配类型：exact / alias / fuzzy / unknown
     company_type: str     # 公司类型：科技 / 银行 / 消费 / 医药 / 其他
     company_name: str     # 公司简称（如 比亚迪、Apple Inc.）
 
@@ -87,6 +89,8 @@ def create_initial_state(task_id: str, user_id: str, user_role: str, topic: str)
         user_role=user_role,
         topic=topic,
         symbol="",
+        matched_name="",
+        match_type="",
         company_type="",
         company_name="",
         subtasks=[],

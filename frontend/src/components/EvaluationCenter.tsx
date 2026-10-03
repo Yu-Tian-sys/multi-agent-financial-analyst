@@ -56,27 +56,40 @@ export function EvaluationCenter({ onBack }: EvaluationCenterProps) {
   const [results, setResults] = useState<StockResult[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
+  const [customTickers, setCustomTickers] = useState<string>('')
+  const [source, setSource] = useState<string>('')
 
-  async function runEvaluate(): Promise<void> {
+  async function runEvaluate(tickers?: string[]): Promise<void> {
     setLoading(true)
     setError('')
     try {
+      const body = tickers && tickers.length > 0 ? { tickers } : { tickers: [] }
       const resp = await fetch('/api/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tickers: [] }),
+        body: JSON.stringify(body),
       })
       if (!resp.ok) {
         throw new Error(`评估失败：${resp.status}`)
       }
       const data = await resp.json()
       setResults(data.results ?? [])
+      setSource(data.source ?? '')
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setError(msg)
     } finally {
       setLoading(false)
     }
+  }
+
+  function handleCustomEvaluate(): void {
+    const list = customTickers
+      .split(/[,，\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (list.length === 0) return
+    void runEvaluate(list)
   }
 
   useEffect(() => {
@@ -86,14 +99,31 @@ export function EvaluationCenter({ onBack }: EvaluationCenterProps) {
   return (
     <div className="flex flex-col h-full p-6 gap-4 overflow-y-auto">
       {/* 顶部标题栏 */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Gauge size={20} className="text-accent" />
           <span className="text-[17px] font-semibold text-fg">Agent 评估中心</span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            type="text"
+            value={customTickers}
+            onChange={(e) => setCustomTickers(e.target.value)}
+            placeholder="自定义标的，如 AAPL, 600519"
+            className="w-[200px] px-3 py-1.5 rounded-md bg-app border border-edge text-[13px] text-fg placeholder:text-muted focus:outline-none focus:border-accent"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleCustomEvaluate()
+            }}
+          />
           <button
-            onClick={runEvaluate}
+            onClick={handleCustomEvaluate}
+            disabled={loading || !customTickers.trim()}
+            className="btn-primary text-[13px] px-3 py-1.5"
+          >
+            评估
+          </button>
+          <button
+            onClick={() => runEvaluate()}
             disabled={loading}
             className="btn-ghost text-[13px] px-3 py-1.5"
           >
@@ -102,12 +132,23 @@ export function EvaluationCenter({ onBack }: EvaluationCenterProps) {
             ) : (
               <RefreshCw size={13} />
             )}{' '}
-            重新评估
+            评估最近分析
           </button>
           <button onClick={onBack} className="btn-ghost text-[13px] px-3 py-1.5">
             <ArrowLeft size={13} /> 返回对话
           </button>
         </div>
+      </div>
+
+      {/* 说明 */}
+      <div className="text-[12px] text-muted px-1">
+        {source === 'recent'
+          ? '📊 当前展示的是你最近分析过的股票的五维度评估结果，可横向对比不同标的的报告质量。'
+          : source === 'custom'
+            ? '📊 当前展示的是自定义标的的五维度评估结果。'
+            : source === 'default'
+              ? '📊 暂无分析历史，当前展示默认蓝筹股的评估结果。分析股票后此处会自动切换为你的历史标的。'
+              : '📊 点击"评估最近分析"查看你分析过的股票质量，或输入自定义标的进行评估。'}
       </div>
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
@@ -117,6 +158,9 @@ export function EvaluationCenter({ onBack }: EvaluationCenterProps) {
           <Loader2 size={32} className="animate-spin text-accent" />
           <span className="text-sm text-muted">
             正在运行五维度评估（财务准确率 / 风险一致性 / 报告完整性 / 分析师共识 / 辩论质量）...
+          </span>
+          <span className="text-xs text-muted/70">
+            {source === 'custom' ? '评估自定义标的中' : '评估你最近分析过的股票中'}
           </span>
         </div>
       )}

@@ -101,6 +101,11 @@ class AnalyzeRequest(BaseModel):
     user_role: str = "user"          # 角色：guest/user/admin
 
 
+class ConfirmRequest(BaseModel):
+    """模糊匹配确认请求"""
+    symbol: str                      # 用户确认后的标准股票代码
+
+
 class AnalyzeResponse(BaseModel):
     """分析响应"""
     task_id: str
@@ -153,6 +158,8 @@ def _run_pipeline_task(task_id: str, user_id: str, user_role: str, topic: str) -
             error=result.get("error", ""),
             current_step=result.get("current_step", 0),
             total_steps=result.get("total_steps", 0),
+            symbol=result.get("symbol", ""),
+            matched_name=result.get("matched_name", ""),
         )
         logger.info(f"[main] 任务完成：{task_id}，status={result.get('status')}")
 
@@ -258,6 +265,54 @@ def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     )
 
 
+@app.post("/confirm/{task_id}", response_model=AnalyzeResponse)
+def confirm_symbol(task_id: str, request: ConfirmRequest, background_tasks: BackgroundTasks):
+    """
+    模糊匹配确认：用户确认标的后，复用原 task_id 重新执行分析。
+
+    避免同一分析产生两条历史记录。
+
+    Args:
+        task_id: 原 need_confirm 任务 ID
+        request: 含用户确认后的 symbol
+        background_tasks: FastAPI 后台任务
+    """
+    task = db.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if task.get("status") != "need_confirm":
+        raise HTTPException(status_code=400, detail="该任务无需确认")
+
+    symbol = request.symbol.strip()
+    if not symbol:
+        raise HTTPException(status_code=400, detail="symbol 不能为空")
+
+    user_id = task.get("user_id", "anonymous")
+    user_role = task.get("user_role", "user")
+
+    # 更新原任务的 topic 为确认后的代码，重置状态并重新执行
+    db.update_task(
+        task_id,
+        topic=symbol,
+        status="running",
+        error="",
+        current_step=0,
+        total_steps=0,
+        matched_name="",
+        symbol=symbol,
+        final_report="",
+        draft_report="",
+    )
+    background_tasks.add_task(_run_pipeline_task, task_id, user_id, user_role, symbol)
+
+    logger.info(f"[main] 确认标的并重新执行：{task_id} / {symbol}")
+    return AnalyzeResponse(
+        task_id=task_id,
+        status="pending",
+        message="已确认标的，开始分析"
+    )
+
+
 @app.post("/compare", response_model=CompareResponse)
 def compare(req: CompareRequest):
     """把两个任务的报告交给 LLM，返回对比总结。"""
@@ -308,7 +363,7 @@ async def ws_task(websocket: WebSocket, task_id: str):
                 if key != last_key:
                     await websocket.send_json({"task": task})
                     last_key = key
-                    if task.get("status") in ("completed", "failed", "rejected"):
+                    if task.get("status") in ("completed", "failed", "rejected", "need_confirm"):
                         break
             await asyncio.sleep(1)
     except WebSocketDisconnect:
@@ -467,16 +522,37 @@ def evaluate(req: EvaluateRequest):
     运行 Agent 评估（五维度）
 
     Args:
-        tickers: 股票代码列表，为空时使用默认 8 只蓝筹股
+        tickers: 股票代码列表；为空时自动取最近分析过的股票（无历史则用默认蓝筹股）
 
     Returns:
         评估结果（Markdown 报告 + 结构化数据）
     """
     from src.evaluation import evaluate_batch, generate_markdown_report, DEFAULT_TICKERS
 
-    # Web 端默认只跑 3 只（各市场一只），避免请求超时；完整 8 只走 CLI
-    WEB_DEFAULT_TICKERS = ["600519", "AAPL", "00700.HK"]
-    tickers = req.tickers if req.tickers else WEB_DEFAULT_TICKERS
+    # 1. 用户指定优先
+    tickers = req.tickers
+    source = "custom" if tickers else "recent"
+
+    # 2. 未指定 → 取最近分析过的股票（去重，最多 5 只）
+    if not tickers:
+        try:
+            recent = db.list_tasks(limit=20)
+            seen = set()
+            for t in recent:
+                topic = (t.get("topic") or "").strip()
+                if topic and topic not in seen:
+                    seen.add(topic)
+                    tickers.append(topic)
+                if len(tickers) >= 5:
+                    break
+        except Exception as e:
+            logger.warning(f"[evaluate] 读取历史任务失败：{e}")
+
+    # 3. 仍无标的 → 降级用默认蓝筹股
+    if not tickers:
+        tickers = ["600519", "AAPL", "00700.HK"]
+        source = "default"
+
     try:
         evaluations = evaluate_batch(tickers)
         report = generate_markdown_report(evaluations)
@@ -499,7 +575,7 @@ def evaluate(req: EvaluateRequest):
                     for r in se.results
                 ],
             })
-        return {"report": report, "results": results}
+        return {"report": report, "results": results, "source": source}
     except Exception as e:
         logger.error(f"[main] 评估失败：{e}")
         raise HTTPException(status_code=500, detail=f"评估失败：{e}")

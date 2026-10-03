@@ -14,6 +14,15 @@ import {
   AlertCircle,
   Download,
   RefreshCw,
+  ListChecks,
+  BarChart3,
+  Newspaper,
+  ShieldCheck,
+  Swords,
+  AlertTriangle,
+  PenLine,
+  BadgeCheck,
+  TrendingUp,
 } from 'lucide-react'
 import { EventTimeline, type TraceEvent } from './components/EventTimeline'
 import { HistorySidebar } from './components/HistorySidebar'
@@ -23,7 +32,7 @@ import { EvaluationCenter } from './components/EvaluationCenter'
 import { ErrorBanner, WarningBanner } from './components/ui'
 
 // 任务状态枚举
-type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'rejected'
+type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'rejected' | 'need_confirm'
 
 interface TaskInfo {
   task_id: string
@@ -35,6 +44,8 @@ interface TaskInfo {
   error: string
   total_cost: number
   total_tokens: number
+  matched_name?: string
+  symbol?: string
 }
 
 interface AnalyzeResponse {
@@ -43,7 +54,7 @@ interface AnalyzeResponse {
   message: string
 }
 
-const TERMINAL_STATUSES: TaskStatus[] = ['completed', 'failed', 'rejected']
+const TERMINAL_STATUSES: TaskStatus[] = ['completed', 'failed', 'rejected', 'need_confirm']
 const POLL_INTERVAL_MS = 2000
 const POLL_MAX_MS = 5 * 60 * 1000
 
@@ -91,16 +102,16 @@ function stageText(currentStep?: number): string {
 
 /** 流水线阶段列表（用于步骤展示） */
 const PIPELINE_STAGES = [
-  { step: 1, label: '规划方案' },
-  { step: 2, label: '财务分析' },
-  { step: 3, label: '新闻分析' },
-  { step: 4, label: '研报分析' },
-  { step: 5, label: '数据验证' },
-  { step: 6, label: '多空辩论' },
-  { step: 7, label: '风险评估' },
-  { step: 8, label: '撰写报告' },
-  { step: 9, label: '合规审查' },
-]
+  { step: 1, label: '规划方案', desc: '拆解分析任务', icon: ListChecks },
+  { step: 2, label: '财务分析', desc: '解析三大报表', icon: BarChart3 },
+  { step: 3, label: '新闻分析', desc: '抓取市场舆情', icon: Newspaper },
+  { step: 4, label: '研报分析', desc: '汇总券商观点', icon: FileText },
+  { step: 5, label: '数据验证', desc: '交叉校验数据', icon: ShieldCheck },
+  { step: 6, label: '多空辩论', desc: '多空观点博弈', icon: Swords },
+  { step: 7, label: '风险评估', desc: '量化风险等级', icon: AlertTriangle },
+  { step: 8, label: '撰写报告', desc: '整合生成报告', icon: PenLine },
+  { step: 9, label: '合规审查', desc: '质量门禁检查', icon: BadgeCheck },
+] as const
 
 /**
  * 多 Agent 金融分析 Dashboard（对话式）
@@ -180,6 +191,8 @@ function App() {
         error: data.error ?? '',
         total_cost: data.total_cost ?? 0,
         total_tokens: data.total_tokens ?? 0,
+        matched_name: data.matched_name ?? '',
+        symbol: data.symbol ?? '',
       }
       setTask(merged)
       if (TERMINAL_STATUSES.includes(merged.status)) {
@@ -244,6 +257,8 @@ function App() {
           error: t.error ?? '',
           total_cost: t.total_cost ?? 0,
           total_tokens: t.total_tokens ?? 0,
+          matched_name: t.matched_name ?? '',
+          symbol: t.symbol ?? '',
         }
         setTask(merged)
         if (TERMINAL_STATUSES.includes(merged.status)) {
@@ -310,6 +325,34 @@ function App() {
     const t = topic.trim()
     await submitWithTopic(t)
     if (t) setTopic('')
+  }
+
+  // 模糊匹配确认：复用原 task_id，不新建任务
+  async function confirmAnalyze(): Promise<void> {
+    if (!task?.task_id || !task.symbol) return
+    setSubmitting(true)
+    setError('')
+    try {
+      const resp = await fetch(`/api/confirm/${encodeURIComponent(task.task_id)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: task.symbol }),
+      })
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({ detail: `HTTP ${resp.status}` })) as { detail?: string }
+        throw new Error(typeof errBody.detail === 'string' ? errBody.detail : `确认失败 HTTP ${resp.status}`)
+      }
+      // 复用原 task_id，重置为 pending 并开始轮询
+      setTaskId(task.task_id)
+      setTask({ ...task, status: 'pending', topic: task.symbol, matched_name: '' })
+      setHistoryRefreshKey((k) => k + 1)
+      startWs(task.task_id)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(`确认失败：${msg}`)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   // 重新分析：用当前 task 的 topic 再跑一次
@@ -398,6 +441,8 @@ function App() {
         error: data.error ?? '',
         total_cost: data.total_cost ?? 0,
         total_tokens: data.total_tokens ?? 0,
+        matched_name: data.matched_name ?? '',
+        symbol: data.symbol ?? '',
       }
       setTask(merged)
       setTaskId(tid)
@@ -536,71 +581,113 @@ function App() {
           {/* 助手消息 */}
           {(task || error) && (
             <div className="msg-assistant">
-              {/* 分析中：步骤列表 + 进度条 */}
+              {/* 分析中：高级加载卡片 */}
               {task && isProcessing && (
-                <div>
-                  <div className="flex items-center gap-2.5 mb-4">
-                    <div className="dot-pulse w-2 h-2 rounded-full bg-accent shrink-0" />
-                    <span className="text-[15px] text-fg font-medium">
-                      {stageText(task.current_step)}
-                    </span>
+                <div className="rounded-2xl border border-edge bg-inset/80 backdrop-blur-sm overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+                  {/* 卡片头部：标的 + 当前阶段 */}
+                  <div className="px-5 pt-5 pb-4 border-b border-divider">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-accent/10">
+                          <TrendingUp size={18} className="text-accent" />
+                          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent animate-ping" />
+                          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent" />
+                        </div>
+                        <div>
+                          <div className="text-[15px] font-semibold text-fg leading-tight">
+                            {task?.topic || topic}
+                          </div>
+                          <div className="text-[11px] text-muted mt-0.5">
+                            多 Agent 协作分析中
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent/10 border border-accent/20">
+                        <Loader2 size={12} className="animate-spin text-accent" />
+                        <span className="text-[11px] font-medium text-accent">Running</span>
+                      </div>
+                    </div>
+                    <div className="text-[13px] text-fg2">
+                      <span className="text-accent font-medium">{stageText(task.current_step)}</span>
+                    </div>
                   </div>
 
-                  {/* 流水线步骤 */}
-                  <div className="flex items-center gap-1 mb-4 flex-wrap">
-                    {PIPELINE_STAGES.map((s, i) => {
-                      const done = task.current_step > s.step
-                      const active = task.current_step === s.step
-                      return (
-                        <div key={s.step} className="flex items-center gap-1">
+                  {/* 流水线时间线 */}
+                  <div className="px-5 py-4">
+                    <div className="grid grid-cols-3 gap-x-3 gap-y-2.5">
+                      {PIPELINE_STAGES.map((s) => {
+                        const done = task.current_step > s.step
+                        const active = task.current_step === s.step
+                        const Icon = s.icon
+                        return (
                           <div
+                            key={s.step}
                             className={[
-                              'flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-colors',
+                              'flex items-center gap-2 px-2.5 py-2 rounded-lg border transition-all duration-300',
                               done
-                                ? 'bg-success/15 text-success'
+                                ? 'bg-success/5 border-success/20'
                                 : active
-                                  ? 'bg-accent/15 text-accent'
-                                  : 'bg-divider text-muted',
+                                  ? 'bg-accent/8 border-accent/30 shadow-[0_0_12px_rgba(88,166,255,0.12)]'
+                                  : 'bg-app/40 border-divider',
                             ].join(' ')}
                           >
-                            {done ? (
-                              <CheckCircle2 size={11} />
-                            ) : active ? (
-                              <Loader2 size={11} className="animate-spin" />
-                            ) : (
-                              <span className="w-[11px] h-[11px] rounded-full border border-current opacity-40" />
-                            )}
-                            {s.label}
-                          </div>
-                          {i < PIPELINE_STAGES.length - 1 && (
                             <div
                               className={[
-                                'w-3 h-px',
-                                done ? 'bg-success/40' : 'bg-divider',
+                                'flex items-center justify-center w-7 h-7 rounded-md shrink-0 transition-colors',
+                                done
+                                  ? 'bg-success/15 text-success'
+                                  : active
+                                    ? 'bg-accent/15 text-accent'
+                                    : 'bg-divider text-muted',
                               ].join(' ')}
-                            />
-                          )}
-                        </div>
-                      )
-                    })}
+                            >
+                              {done ? (
+                                <CheckCircle2 size={14} />
+                              ) : active ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <Icon size={14} />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div
+                                className={[
+                                  'text-[12px] font-medium leading-tight truncate',
+                                  done ? 'text-success' : active ? 'text-accent' : 'text-muted',
+                                ].join(' ')}
+                              >
+                                {s.label}
+                              </div>
+                              <div className="text-[10px] text-muted/70 leading-tight truncate">
+                                {s.desc}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
 
-                  {task.total_steps > 0 && (
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-1.5 rounded-full bg-divider overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-[linear-gradient(90deg,#58a6ff,#79c0ff)] shadow-[0_0_8px_rgba(88,166,255,0.5)]"
-                          style={{
-                            width: `${progressPct}%`,
-                            transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-                          }}
-                        />
-                      </div>
-                      <span className="stat-value text-xs text-fg2 min-w-10 text-right">
+                  {/* 底部进度条 */}
+                  <div className="px-5 pb-5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[11px] text-muted">
+                        已完成 {Math.min(task.current_step, PIPELINE_STAGES.length)} / {PIPELINE_STAGES.length} 阶段
+                      </span>
+                      <span className="text-[13px] font-semibold text-fg tabular-nums">
                         {progressPct}%
                       </span>
                     </div>
-                  )}
+                    <div className="h-1.5 rounded-full bg-divider overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[linear-gradient(90deg,#1f6feb,#58a6ff,#79c0ff)] shadow-[0_0_10px_rgba(88,166,255,0.5)]"
+                        style={{
+                          width: `${progressPct}%`,
+                          transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -753,6 +840,33 @@ function App() {
                   <div className="mt-3">
                     <button onClick={reset} className="btn-ghost text-[13px] px-3 py-1.5">
                       <RotateCcw size={13} /> 重新开始
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 模糊匹配需确认 */}
+              {task?.status === 'need_confirm' && (
+                <div className="bg-inset border border-edge rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertCircle size={16} className="text-accent" />
+                    <span className="text-sm font-semibold text-fg">请确认分析标的</span>
+                  </div>
+                  <p className="text-[13px] text-fg2 mb-4 leading-relaxed">
+                    你输入的「<span className="text-fg font-medium">{task.topic}</span>」可能是
+                    「<span className="text-accent font-medium">{task.matched_name}</span>（<span className="font-mono">{task.symbol}</span>）」，
+                    是否确认分析该标的？
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={confirmAnalyze}
+                      disabled={submitting}
+                      className="btn-primary text-[13px] px-4 py-1.5"
+                    >
+                      {submitting ? '确认中...' : '确认，开始分析'}
+                    </button>
+                    <button onClick={reset} className="btn-ghost text-[13px] px-3 py-1.5">
+                      取消
                     </button>
                   </div>
                 </div>

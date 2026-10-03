@@ -82,11 +82,7 @@ def search_news(query: str, limit: int = 10) -> List[Dict]:
         except Exception as e:
             logger.error(f"[news] 新闻获取失败 {query}: {e}")
 
-    # 降级：真实数据为空时用 mock（保证测试和演示可用）
-    if not result:
-        key = query.upper() if query.upper() in MOCK_NEWS else "default"
-        result = MOCK_NEWS[key][:limit]
-
+    # 真实数据为空时返回空列表（不再用通用 mock，避免误导）
     if result:
         _set_cache(cache_key, result)
     return result

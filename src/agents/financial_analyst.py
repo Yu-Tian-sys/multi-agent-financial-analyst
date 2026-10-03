@@ -67,11 +67,28 @@ def financial_analyst_node(state: FinanceState) -> dict:
             except Exception:
                 company_name = topic
 
+        # 估值数据
+        valuation = None
+        yoy = {}
         if provider is not None:
             # ===== 生产路径：结构化数据 =====
             financials = provider.get_financials(symbol)
             latest = financials.latest
             bs_latest = financials.balance_sheet[0] if financials.balance_sheet else None
+
+            try:
+                valuation = provider.get_valuation(symbol)
+            except Exception as e:
+                logger.warning(f"[financial] 估值获取失败：{e}")
+
+            # 同比增速（最新期 vs 上一期）
+            if len(financials.income_statement) >= 2:
+                prev = financials.income_statement[1]
+                for field, label in [("revenue", "营收同比"), ("net_income", "净利润同比")]:
+                    cur = getattr(latest, field, None)
+                    pre = getattr(prev, field, None)
+                    if cur is not None and pre not in (None, 0):
+                        yoy[label] = round((cur - pre) / abs(pre) * 100, 2)
 
             if latest is not None:
                 # 从利润表提取指标
@@ -126,16 +143,35 @@ def financial_analyst_node(state: FinanceState) -> dict:
         if debt_ratio is not None:
             ratios["debt_ratio"] = round(debt_ratio, 4)
 
+        # 组装估值数据（转成 dict 方便序列化）
+        valuation_dict = {}
+        if valuation is not None:
+            if valuation.pe is not None:
+                valuation_dict["pe"] = round(valuation.pe, 2)
+            if valuation.pe_ttm is not None:
+                valuation_dict["pe_ttm"] = round(valuation.pe_ttm, 2)
+            if valuation.pb is not None:
+                valuation_dict["pb"] = round(valuation.pb, 2)
+            if valuation.ps is not None:
+                valuation_dict["ps"] = round(valuation.ps, 2)
+            if valuation.ps_ttm is not None:
+                valuation_dict["ps_ttm"] = round(valuation.ps_ttm, 2)
+            if valuation.market_cap is not None:
+                valuation_dict["market_cap"] = round(valuation.market_cap, 2)
+
         # 组装结果
         financial_data = {
             "source": source,
             "raw_metrics": raw_metrics,
             "metrics": metrics,
             "ratios": ratios,
-            "financial_text": financial_text,  # 供评估路径使用
+            "yoy": yoy,                          # 同比增速
+            "valuation": valuation_dict,         # 估值指标
+            "financial_text": financial_text,    # 供评估路径使用
         }
 
-        logger.info(f"[financial] 分析完成：{len(metrics)} 个指标，{len(ratios)} 个比率，来源 {source}")
+        logger.info(f"[financial] 分析完成：{len(metrics)} 个指标，{len(ratios)} 个比率，"
+                     f"同比 {len(yoy)} 项，估值 {len(valuation_dict)} 项，来源 {source}")
 
         return {
             "company_name": company_name,

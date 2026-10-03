@@ -34,7 +34,7 @@ _tracer = None
 
 def route_after_precheck(state: FinanceState) -> Literal["planner", "end"]:
     """
-    precheck 后路由：通过则进入规划，不通过直接结束
+    precheck 后路由：通过则进入规划，拒绝/需确认直接结束
 
     Args:
         state: 当前状态
@@ -42,8 +42,12 @@ def route_after_precheck(state: FinanceState) -> Literal["planner", "end"]:
     Returns:
         "planner" 或 "end"
     """
-    if state.get("status") == "rejected":
+    status = state.get("status")
+    if status == "rejected":
         logger.warning(f"[graph] 预检拒绝：{state.get('error')}")
+        return "end"
+    if status == "need_confirm":
+        logger.info(f"[graph] 需用户确认标的：{state.get('matched_name')}({state.get('symbol')})")
         return "end"
     return "planner"
 

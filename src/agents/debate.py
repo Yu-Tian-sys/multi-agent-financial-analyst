@@ -20,6 +20,9 @@ MAX_DEBATE_ROUNDS = 2
 
 SUMMARIZE_PROMPT = """你是一个金融数据整理员。请把以下资料压缩成不超过 200 字的研究摘要。
 
+【分析标的】
+{target}
+
 【财务数据】
 {financial}
 
@@ -36,7 +39,7 @@ SUMMARIZE_PROMPT = """你是一个金融数据整理员。请把以下资料压�
 4. 用紧凑格式，不要解释
 5. 只输出摘要，不要其他内容"""
 
-BULL_PROMPT = """你是一个乐观的多头研究员，正在为「{topic}」的投资价值进行辩护。
+BULL_PROMPT = """你是一个乐观的多头研究员，正在为「{target}」的投资价值进行辩护。
 
 以下是收集到的资料：
 
@@ -49,9 +52,11 @@ BULL_PROMPT = """你是一个乐观的多头研究员，正在为「{topic}」�
 请从多头的角度，给出你的看多论据（3-5 条），要具体、有数据支撑。
 如果对方（空头）已经发言，请针对性反驳。
 
+注意：股票代码与公司名称的对应关系已确认，无需质疑。
+
 只输出你的论据文本，不要其他格式。"""
 
-BEAR_PROMPT = """你是一个谨慎的空头研究员，正在对「{topic}」的投资风险进行剖析。
+BEAR_PROMPT = """你是一个谨慎的空头研究员，正在对「{target}」的投资风险进行剖析。
 
 以下是收集到的资料：
 
@@ -63,6 +68,8 @@ BEAR_PROMPT = """你是一个谨慎的空头研究员，正在对「{topic}」�
 
 请从空头的角度，给出你的看空论据（3-5 条），要具体、有数据支撑。
 如果对方（多头）已经发言，请针对性反驳。
+
+注意：股票代码与公司名称的对应关系已确认，无需质疑。
 
 只输出你的论据文本，不要其他格式。"""
 
@@ -146,18 +153,20 @@ def _format_history(records: list) -> str:
 # 辩论主体
 # ========================================
 
-def summarize_context(context: Dict[str, str]) -> Tuple[str, int, float]:
+def summarize_context(context: Dict[str, str], target: str) -> Tuple[str, int, float]:
     """
     把财务/新闻/研报压缩成 200 字摘要
 
     Args:
         context: _format_context 返回的 {"financial": ..., "news": ..., "reports": ...}
+        target: 标的名称（如 "宇树科技（688836）"）
 
     Returns:
         (摘要文本, tokens, cost)
         失败时降级：直接返回原始拼接
     """
     prompt = SUMMARIZE_PROMPT.format(
+        target=target,
         financial=context["financial"],
         news=context["news"],
         reports=context["reports"],
@@ -190,7 +199,10 @@ def debate_node(state: FinanceState) -> dict:
         要更新的字段
     """
     topic = state["topic"]
-    logger.info(f"[debate] 开始多空辩论：{topic}")
+    symbol = state.get("symbol", topic)
+    company_name = state.get("company_name") or topic
+    target = f"{company_name}（{symbol}）"
+    logger.info(f"[debate] 开始多空辩论：{target}")
 
     total_tokens = 0
     total_cost = 0.0
@@ -199,7 +211,7 @@ def debate_node(state: FinanceState) -> dict:
         # 1. 准备资料
         context = _format_context(state)
         # 先总结上下文（降本）
-        summary, sum_tokens, sum_cost = summarize_context(context)
+        summary, sum_tokens, sum_cost = summarize_context(context, target)
         total_tokens += sum_tokens
         total_cost += sum_cost
         logger.info(f"[debate] 上下文已总结（{sum_tokens} tokens）")
@@ -210,7 +222,7 @@ def debate_node(state: FinanceState) -> dict:
             # 多头发言
             history = _format_history(records)
             bull_prompt = BULL_PROMPT.format(
-                topic=topic,
+                target=target,
                 summary=summary,
                 history=history,
             )
@@ -227,7 +239,7 @@ def debate_node(state: FinanceState) -> dict:
             # 空头发言
             history = _format_history(records)
             bear_prompt = BEAR_PROMPT.format(
-                topic=topic,
+                target=target,
                 summary=summary,
                 history=history,
             )

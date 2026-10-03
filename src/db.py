@@ -75,6 +75,16 @@ class Database:
             )
         """)
 
+        # 迁移：tasks 表新增 matched_name 列（模糊匹配反问用）
+        try:
+            cursor.execute("ALTER TABLE tasks ADD COLUMN matched_name TEXT DEFAULT ''")
+        except Exception:
+            pass  # 列已存在
+        try:
+            cursor.execute("ALTER TABLE tasks ADD COLUMN symbol TEXT DEFAULT ''")
+        except Exception:
+            pass
+
         # 2. 消息表：存对话历史（独立于 tasks，方便查询）
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS messages (

@@ -23,7 +23,7 @@ def search_reports(query: str, limit: int = 5) -> List[Dict]:
     """
     检索分析师评级 + 研报
 
-    优先返回真实分析师评级，不足时用本地研报库补充。
+    仅返回真实分析师评级，无数据时返回空列表（不用通用 mock 避免误导）。
 
     Args:
         query: 股票代码或关键词
@@ -37,7 +37,7 @@ def search_reports(query: str, limit: int = 5) -> List[Dict]:
 
     results = []
 
-    # 1. 优先获取真实分析师评级
+    # 获取真实分析师评级
     provider = get_provider(query)
     if provider is not None:
         try:
@@ -59,20 +59,5 @@ def search_reports(query: str, limit: int = 5) -> List[Dict]:
                 })
         except Exception as e:
             logger.warning(f"[reports] 分析师评级获取失败 {query}: {e}")
-
-    # 2. 不足时用本地研报库补充
-    if len(results) < limit:
-        query_lower = query.lower()
-        for report in MOCK_REPORTS:
-            if len(results) >= limit:
-                break
-            text = (report["title"] + " " + report["summary"]).lower()
-            keywords = [w for w in query_lower.replace(",", " ").split() if len(w) > 1]
-            if not keywords or any(kw in text for kw in keywords):
-                results.append(report)
-
-    # 3. 如果还是没有（非股票代码且无关键词匹配），返回热门研报
-    if not results:
-        results = MOCK_REPORTS[:limit]
 
     return results[:limit]
