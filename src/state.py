@@ -18,6 +18,17 @@ def _keep_status(a: str, b: str) -> str:
     return b  # 非严重状态取最新写入值
 
 
+def _join_errors(a: str, b: str) -> str:
+    """错误合并：并行节点各自报错时拼接保留，不丢任何一条"""
+    if not a:
+        return b
+    if not b:
+        return a
+    if a == b:
+        return a
+    return f"{a} | {b}"
+
+
 class FinanceState(TypedDict):
     # 【基础字段】
     task_id: str          # 任务唯一 ID（UUID）
@@ -73,7 +84,7 @@ class FinanceState(TypedDict):
     # 【消息与状态】
     messages: Annotated[list, operator.add]  # 消息历史，自动追加
     status: Annotated[str, _keep_status]  # pending / running / completed / failed / rejected（并行取最严重）
-    error: str                # 错误信息，无错误为空字符串
+    error: Annotated[str, _join_errors]  # 错误信息（并行节点报错时拼接，不丢失）
 
     # 【成本与时间】
     start_time: float         # 开始时间戳

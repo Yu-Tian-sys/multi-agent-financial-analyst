@@ -3,18 +3,11 @@ import time
 import logging
 from typing import Dict, Tuple, List
 
-from openai import OpenAI
-
 from src.state import FinanceState
 from src.config import settings
+import src.optimization.model_router as router_module
 
 logger = logging.getLogger(__name__)
-
-
-_client = OpenAI(
-    api_key=settings.deepseek_api_key,
-    base_url=settings.deepseek_base_url,
-)
 
 
 REPORT_PROMPT = """你是一个专业的金融分析师，需要撰写一份投资研究报告。
@@ -84,25 +77,8 @@ REPORT_PROMPT = """你是一个专业的金融分析师，需要撰写一份投�
 
 
 def _call_llm(prompt: str, max_retries: int = 2) -> Tuple[str, int, float]:
-    """调用 LLM，带重试"""
-    last_error = None
-    for attempt in range(max_retries + 1):
-        try:
-            response = _client.chat.completions.create(
-                model="deepseek-chat",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.5,
-            )
-            content = response.choices[0].message.content
-            tokens = response.usage.total_tokens if response.usage else 0
-            cost = tokens / 1_000_000 * 1.0
-            return content, tokens, cost
-        except Exception as e:
-            last_error = e
-            logger.warning(f"[writer] LLM 调用失败（第 {attempt+1} 次）：{e}")
-            if attempt < max_retries:
-                time.sleep(2 ** attempt)
-    raise last_error
+    """调用 LLM（走统一 router，报告撰写用 expensive 模型，失败降级 cheap）"""
+    return router_module.call_llm(prompt, tier="expensive", temperature=0.5, max_retries=max_retries)
 
 
 def _build_references(state: FinanceState) -> List[Dict]:

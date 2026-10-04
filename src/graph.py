@@ -117,12 +117,20 @@ def build_graph() -> StateGraph:
     START → precheck → memory_recall → (条件) → planner → 并行(3个) → validator
           → debate → risk → writer → compliance → memory_save → finalize → END
     """
+    import sqlite3
+    from langgraph.checkpoint.sqlite import SqliteSaver
+
     graph = StateGraph(FinanceState)
 
     # 创建全局 Database + Tracer 实例
     global _tracer
     _db = Database()
     _tracer = Tracer(db=_db)
+
+    # Checkpointer：用 SQLite 存图状态快照，支持崩溃后从断点恢复
+    # 与 tasks 表分开存储（checkpoints.db），避免与业务数据互相干扰
+    _checkpoint_conn = sqlite3.connect("./data/checkpoints.db", check_same_thread=False)
+    _checkpointer = SqliteSaver(_checkpoint_conn)
 
     def _recall_wrapper(state):
         return recall_node(state, _db)
@@ -236,7 +244,7 @@ def build_graph() -> StateGraph:
     graph.add_edge("memory_save", "finalize")
     graph.add_edge("finalize", END)
 
-    return graph.compile()
+    return graph.compile(checkpointer=_checkpointer)
 
 
 # 全局编译好的图
@@ -247,7 +255,7 @@ app = build_graph()
 # 便捷函数
 # ========================================
 
-def run_pipeline(task_id: str, user_id: str, user_role: str, topic: str) -> dict:
+def run_pipeline(task_id: str, user_id: str, user_role: str, topic: str, resume: bool = False) -> dict:
     """
     运行完整流水线
 
@@ -256,6 +264,7 @@ def run_pipeline(task_id: str, user_id: str, user_role: str, topic: str) -> dict
         user_id: 用户 ID
         user_role: 用户角色
         topic: 股票代码或行业
+        resume: True 表示从断点恢复（崩溃后续跑），False 表示全新启动
 
     Returns:
         最终状态
@@ -263,9 +272,18 @@ def run_pipeline(task_id: str, user_id: str, user_role: str, topic: str) -> dict
     from src.state import create_initial_state
     if _tracer is not None:
         _tracer.start_trace(task_id, task_id=task_id, topic=topic)
-    initial = create_initial_state(task_id, user_id, user_role, topic)
-    logger.info(f"[graph] 启动流水线：{task_id} / {topic}")
-    result = app.invoke(initial)
+
+    config = {"configurable": {"thread_id": task_id}}
+
+    if resume:
+        # 从 checkpoint 恢复：传入 None 作为输入，LangGraph 从最后一个快照继续
+        logger.info(f"[graph] 从断点恢复流水线：{task_id}")
+        result = app.invoke(None, config=config)
+    else:
+        initial = create_initial_state(task_id, user_id, user_role, topic)
+        logger.info(f"[graph] 启动流水线：{task_id} / {topic}")
+        result = app.invoke(initial, config=config)
+
     logger.info(f"[graph] 流水线结束：{result.get('status')}")
     return result
 

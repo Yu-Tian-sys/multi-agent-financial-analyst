@@ -29,10 +29,35 @@ db: Database = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期：启动时建库，关闭时释放"""
+    """应用生命周期：启动时建库 + 恢复僵尸任务，关闭时释放"""
     global db
     db = Database(settings.db_path)
     logger.info(f"[main] 数据库初始化完成：{settings.db_path}")
+
+    # 启动时恢复因崩溃卡在 running 的任务
+    try:
+        from src.graph import run_pipeline
+        stuck = db.conn.execute(
+            "SELECT task_id, user_id, user_role, topic FROM tasks WHERE status IN ('running', 'pending')"
+        ).fetchall()
+        for row in stuck:
+            tid, uid, role, topic = row["task_id"], row["user_id"], row["user_role"], row["topic"]
+            logger.info(f"[main] 发现僵尸任务，尝试恢复：{tid} / {topic}")
+            try:
+                # 后台线程恢复，不阻塞启动
+                import threading
+                threading.Thread(
+                    target=run_pipeline,
+                    args=(tid, uid, role, topic),
+                    kwargs={"resume": True},
+                    daemon=True,
+                ).start()
+            except Exception as e:
+                logger.error(f"[main] 恢复任务 {tid} 失败：{e}")
+                db.update_task(tid, status="failed", error=f"服务重启恢复失败：{e}")
+    except Exception as e:
+        logger.warning(f"[main] 僵尸任务扫描失败：{e}")
+
     yield
     db.close()
     logger.info("[main] 数据库连接已关闭")
