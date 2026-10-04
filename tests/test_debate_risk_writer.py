@@ -10,11 +10,20 @@ import src.optimization.model_router as router_module
 
 def test_debate_node_mock(monkeypatch):
     """测试多空辩论节点（mock LLM）"""
-    call_count = [0]
+    bull_args = [
+        "营收同比增长15%，净利润增长20%，盈利能力持续增强",
+        "市场份额扩大至行业第二，新产品线贡献显著增量",
+        "经营现金流充沛，连续三年超过净利润，财务健康度高",
+    ]
+    bear_args = [
+        "估值处于历史高位，PE超过行业均值50%，下行风险大",
+        "核心业务增速放缓，新业务尚未盈利，增长动力存疑",
+        "行业竞争加剧，毛利率连续两个季度下滑",
+    ]
+    bull_idx = [0]
+    bear_idx = [0]
     def mock_call_llm(prompt, tier="cheap", *, temperature=0.3, max_retries=2):
-        call_count[0] += 1
-        if "整理员" in prompt or "研究摘要" in prompt:
-            return "【摘要】测试用压缩摘要", 50, 0.00005
+        # 先判断裁决（裁决 prompt 里也含"摘要"，必须优先）
         if "主持人" in prompt or "JUDGE" in prompt or "裁决" in prompt:
             verdict = json.dumps({
                 "stance": "看多",
@@ -24,7 +33,17 @@ def test_debate_node_mock(monkeypatch):
                 "conclusion": "综合看多"
             }, ensure_ascii=False)
             return verdict, 100, 0.0001
-        return f"这是第 {call_count[0]} 次发言", 100, 0.0001
+        # 再判断多空（多空 prompt 里也含摘要内容）
+        if "多头" in prompt or "乐观" in prompt:
+            idx = bull_idx[0]
+            bull_idx[0] += 1
+            return bull_args[idx % len(bull_args)], 100, 0.0001
+        if "空头" in prompt or "谨慎" in prompt:
+            idx = bear_idx[0]
+            bear_idx[0] += 1
+            return bear_args[idx % len(bear_args)], 100, 0.0001
+        # 最后才是摘要
+        return "【摘要】测试用压缩摘要", 50, 0.00005
 
     monkeypatch.setattr(router_module, "call_llm", mock_call_llm)
 
@@ -37,9 +56,9 @@ def test_debate_node_mock(monkeypatch):
     result = debate_node(state)
 
     assert result["status"] == "running"
-    assert result["debate_rounds"] == 2
-    # 2 轮 × 2 条 + 1 裁决 = 5 条
-    assert len(result["debate_records"]) == 5
+    assert result["debate_rounds"] == 3
+    # 3 轮 × 2 条 + 1 裁决 = 7 条
+    assert len(result["debate_records"]) == 7
     assert result["debate_records"][0]["side"] == "bull"
     assert result["debate_records"][1]["side"] == "bear"
     assert result["debate_records"][-1]["side"] == "judge"
