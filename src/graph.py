@@ -175,17 +175,27 @@ def build_graph() -> StateGraph:
                     add_cost(user_id, cost_delta)
                 except Exception:
                     pass
-            # 每步实时把进度写回 tasks 表，供前端进度条展示
+                # 写入成本明细（供按模型/节点统计成本）
+                try:
+                    _db.log_cost(trace_id, agent_name, token_delta, cost_delta)
+                except Exception:
+                    pass
+            # 每步实时把进度 + 状态写回 tasks 表，供前端进度条/状态展示
             try:
                 task_id = state.get("task_id")
-                if task_id:
-                    progress_update: dict = {}
-                    if result and result.get("current_step") is not None:
-                        progress_update["current_step"] = result["current_step"]
-                    if result and result.get("total_steps") is not None:
-                        progress_update["total_steps"] = result["total_steps"]
-                    if progress_update:
-                        _db.update_task(task_id, **progress_update)
+                if task_id and result:
+                    task_update: dict = {}
+                    if result.get("current_step") is not None:
+                        task_update["current_step"] = result["current_step"]
+                    if result.get("total_steps") is not None:
+                        task_update["total_steps"] = result["total_steps"]
+                    # 状态/错误实时同步（节点失败时前端能立即看到，不用等到流水线结束）
+                    if result.get("status"):
+                        task_update["status"] = result["status"]
+                    if result.get("error"):
+                        task_update["error"] = result["error"]
+                    if task_update:
+                        _db.update_task(task_id, **task_update)
             except Exception:
                 # 进度写回失败不影响流水线主流程
                 pass
@@ -278,7 +288,13 @@ def run_pipeline(task_id: str, user_id: str, user_role: str, topic: str, resume:
     if resume:
         # 从 checkpoint 恢复：传入 None 作为输入，LangGraph 从最后一个快照继续
         logger.info(f"[graph] 从断点恢复流水线：{task_id}")
-        result = app.invoke(None, config=config)
+        try:
+            result = app.invoke(None, config=config)
+        except Exception as e:
+            # checkpoint 不存在或损坏时，降级为全新启动（重跑整个流水线）
+            logger.warning(f"[graph] 断点恢复失败，降级为全新启动：{task_id} / {e}")
+            initial = create_initial_state(task_id, user_id, user_role, topic)
+            result = app.invoke(initial, config=config)
     else:
         initial = create_initial_state(task_id, user_id, user_role, topic)
         logger.info(f"[graph] 启动流水线：{task_id} / {topic}")

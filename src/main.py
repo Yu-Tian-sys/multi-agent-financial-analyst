@@ -34,22 +34,24 @@ async def lifespan(app: FastAPI):
     db = Database(settings.db_path)
     logger.info(f"[main] 数据库初始化完成：{settings.db_path}")
 
-    # 启动时恢复因崩溃卡在 running 的任务
+    # 启动时恢复因崩溃卡在 running/pending 的任务
     try:
         from src.graph import run_pipeline
         stuck = db.conn.execute(
-            "SELECT task_id, user_id, user_role, topic FROM tasks WHERE status IN ('running', 'pending')"
+            "SELECT task_id, user_id, user_role, topic, status FROM tasks WHERE status IN ('running', 'pending')"
         ).fetchall()
         for row in stuck:
-            tid, uid, role, topic = row["task_id"], row["user_id"], row["user_role"], row["topic"]
-            logger.info(f"[main] 发现僵尸任务，尝试恢复：{tid} / {topic}")
+            tid, uid, role, topic, status = row["task_id"], row["user_id"], row["user_role"], row["topic"], row["status"]
+            logger.info(f"[main] 发现僵尸任务({status})，尝试恢复：{tid} / {topic}")
             try:
-                # 后台线程恢复，不阻塞启动
+                # pending = 还没开始跑，无 checkpoint，用全新启动
+                # running = 跑到一半崩溃，有 checkpoint，用断点恢复
+                resume = (status == "running")
                 import threading
                 threading.Thread(
                     target=run_pipeline,
                     args=(tid, uid, role, topic),
-                    kwargs={"resume": True},
+                    kwargs={"resume": resume},
                     daemon=True,
                 ).start()
             except Exception as e:
