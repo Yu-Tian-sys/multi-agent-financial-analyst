@@ -1,20 +1,12 @@
 import json
-import time
 import logging
 from typing import Dict, List, Tuple
 
-from openai import OpenAI
-
 from src.state import FinanceState
 from src.config import settings
+import src.optimization.model_router as router_module
 
 logger = logging.getLogger(__name__)
-
-
-_client = OpenAI(
-    api_key=settings.deepseek_api_key,
-    base_url=settings.deepseek_base_url,
-)
 
 
 # ========================================
@@ -99,7 +91,7 @@ COMPLIANCE_PROMPT = """你是合规审查员，需要检查以下投资研究报
 
 def _llm_compliance_check(report: str) -> Tuple[dict, int, float]:
     """
-    用 LLM 做合规审查
+    用 LLM 做合规审查（走统一 model_router，支持 mock / 降级 / 成本统计）
 
     Args:
         report: 报告文本
@@ -108,33 +100,21 @@ def _llm_compliance_check(report: str) -> Tuple[dict, int, float]:
         (审查结果, tokens, cost)
     """
     prompt = COMPLIANCE_PROMPT.format(report=report[:3000])  # 截断防止超长
-    last_error = None
-    for attempt in range(3):
+    try:
+        content, tokens, cost = router_module.call_llm(
+            prompt, tier="cheap", temperature=0.1
+        )
+        text = content.replace("```json", "").replace("```", "").strip()
         try:
-            response = _client.chat.completions.create(
-                model="deepseek-chat",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
-            )
-            content = response.choices[0].message.content
-            tokens = response.usage.total_tokens if response.usage else 0
-            cost = tokens / 1_000_000 * 1.0
+            result = json.loads(text)
+            return result, tokens, cost
+        except json.JSONDecodeError:
+            logger.warning(f"[compliance] JSON 解析失败：{text[:100]}")
+    except Exception as e:
+        logger.error(f"[compliance] LLM 审查失败：{e}")
 
-            text = content.replace("```json", "").replace("```", "").strip()
-            try:
-                result = json.loads(text)
-                return result, tokens, cost
-            except json.JSONDecodeError:
-                logger.warning(f"[compliance] JSON 解析失败：{text[:100]}")
-        except Exception as e:
-            last_error = e
-            logger.warning(f"[compliance] LLM 调用失败（第 {attempt+1} 次）：{e}")
-            if attempt < 2:
-                time.sleep(2 ** attempt)
-
-    # 降级：默认通过（但要人工复核）
-    logger.error(f"[compliance] LLM 审查失败，降级通过：{last_error}")
-    return {"passed": True, "issues": ["LLM 审查失败，需人工复核"], "suggestions": []}, 0, 0.0
+    # 降级：审查失败时不通过（fail-closed），需人工复核
+    return {"passed": False, "issues": ["LLM 审查失败，需人工复核"], "suggestions": []}, 0, 0.0
 
 
 def compliance_node(state: FinanceState) -> dict:

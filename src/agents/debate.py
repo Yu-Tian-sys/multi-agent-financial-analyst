@@ -10,8 +10,8 @@ import src.optimization.model_router as router_module
 logger = logging.getLogger(__name__)
 
 
-# 最大辩论轮数
-MAX_DEBATE_ROUNDS = 3
+# 最大辩论轮数（2 轮 = 双方各 1 次发言 + 1 次反驳，辩论充分性足够且降本）
+MAX_DEBATE_ROUNDS = 2
 # 重复检测阈值：本轮与上一轮观点 Jaccard 相似度超过此值则认为空转，提前终止
 REPEAT_THRESHOLD = 0.6
 

@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # 端到端评估
     enable_evaluation: bool = True                                # 流水线完成后自动运行五维度评估
 
+    # 认证（可选）：设置后需在请求头携带 X-API-Key 才能调用写接口
+    api_key: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = False

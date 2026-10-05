@@ -5,8 +5,9 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect, Request, Depends
 from fastapi.responses import FileResponse
+from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
@@ -25,6 +26,17 @@ logger = logging.getLogger(__name__)
 # 全局资源
 # ========================================
 db: Database = None
+
+
+# 可选 API Key 认证：仅当 settings.api_key 非空时生效
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+def verify_api_key(api_key: Optional[str] = Depends(_api_key_header)):
+    """写接口认证：若配置了 API_KEY 则校验 X-API-Key 头，否则放行"""
+    if settings.api_key and api_key != settings.api_key:
+        raise HTTPException(status_code=401, detail="无效或缺失 API Key")
+    return api_key
 
 
 @asynccontextmanager
@@ -250,7 +262,7 @@ def _summarize_events(events: list) -> dict:
 # 接口
 # ========================================
 
-@app.post("/analyze", response_model=AnalyzeResponse)
+@app.post("/analyze", response_model=AnalyzeResponse, dependencies=[Depends(verify_api_key)])
 def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     """
     提交分析任务（异步）
@@ -292,7 +304,7 @@ def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     )
 
 
-@app.post("/confirm/{task_id}", response_model=AnalyzeResponse)
+@app.post("/confirm/{task_id}", response_model=AnalyzeResponse, dependencies=[Depends(verify_api_key)])
 def confirm_symbol(task_id: str, request: ConfirmRequest, background_tasks: BackgroundTasks):
     """
     模糊匹配确认：用户确认标的后，复用原 task_id 重新执行分析。
@@ -340,7 +352,7 @@ def confirm_symbol(task_id: str, request: ConfirmRequest, background_tasks: Back
     )
 
 
-@app.post("/compare", response_model=CompareResponse)
+@app.post("/compare", response_model=CompareResponse, dependencies=[Depends(verify_api_key)])
 def compare(req: CompareRequest):
     """把两个任务的报告交给 LLM，返回对比总结。"""
     try:
@@ -416,7 +428,7 @@ def list_tasks(limit: int = 50, offset: int = 0):
     return {"tasks": tasks, "count": len(tasks)}
 
 
-@app.delete("/tasks/{task_id}")
+@app.delete("/tasks/{task_id}", dependencies=[Depends(verify_api_key)])
 def delete_task(task_id: str):
     """删除指定任务（历史记录）。"""
     ok = db.delete_task(task_id)
@@ -543,7 +555,7 @@ class EvaluateRequest(BaseModel):
     tickers: list[str] = []
 
 
-@app.post("/evaluate")
+@app.post("/evaluate", dependencies=[Depends(verify_api_key)])
 def evaluate(req: EvaluateRequest):
     """
     运行 Agent 评估（五维度）

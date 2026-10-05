@@ -28,9 +28,9 @@ METRICS_TO_CHECK = [
     ("equity", "净资产"),
 ]
 
-EXTRACT_PROMPT = """你是一个财务数据提取助手。请从以下财报文本中提取关键财务指标。
+EXTRACT_PROMPT = """你是一个财务数据提取助手。请从以下{source_desc}中提取关键财务指标。
 
-【财报文本】
+【{source_desc}】
 {text}
 
 请提取以下指标（只输出数字，不要单位）：
@@ -52,13 +52,17 @@ EXTRACT_PROMPT = """你是一个财务数据提取助手。请从以下财报文
 如果某个指标在文本中找不到，填 null。只输出 JSON，不要其他内容。"""
 
 
-def evaluate_financial_accuracy(symbol: str, tolerance: float = 0.05) -> EvaluationResult:
+def evaluate_financial_accuracy(symbol: str, tolerance: float = 0.05, report_text: str = "") -> EvaluationResult:
     """
     评估财务指标提取准确率
+
+    若传入 report_text（Agent 生成的投资报告），则从报告中提取数字并与真实财报对比，
+    真正检验 Agent 报告的财务准确性；否则回退到从结构化财报生成的文本中提取（仅作代理测试）。
 
     Args:
         symbol: 股票代码
         tolerance: 允许的相对误差（默认 5%）
+        report_text: Agent 生成的报告文本（可选，流水线评估时传入）
 
     Returns:
         EvaluationResult
@@ -93,13 +97,20 @@ def evaluate_financial_accuracy(symbol: str, tolerance: float = 0.05) -> Evaluat
         "净资产": bs.total_equity if bs else None,
     }
 
-    # 2. 获取财报文本
-    text = provider.get_financial_text(symbol)
+    # 2. 确定待提取的文本来源
+    if report_text:
+        # 流水线评估：从 Agent 生成的真实报告中提取（检验报告准确性）
+        text = report_text
+        source_desc = "投资研究报告"
+    else:
+        # 独立 CLI 评估：无报告可用，回退到从结构化数据生成的文本（代理测试）
+        text = provider.get_financial_text(symbol)
+        source_desc = "财报文本"
 
     # 3. 让 LLM 提取指标
     import src.optimization.model_router as router_module
     try:
-        prompt = EXTRACT_PROMPT.format(text=text[:3000])  # 限制长度
+        prompt = EXTRACT_PROMPT.format(text=text[:3000], source_desc=source_desc)
         content, tokens, cost = router_module.call_llm(prompt, tier="cheap", temperature=0.0)
         # 解析 JSON
         extracted = _parse_json(content)

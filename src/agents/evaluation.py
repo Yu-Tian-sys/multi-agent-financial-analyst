@@ -75,9 +75,10 @@ def evaluation_node(state: FinanceState) -> dict:
     total_tokens = state.get("total_tokens", 0)
     total_cost = state.get("total_cost", 0.0)
 
-    # 1. 财务指标准确率（需 LLM 提取报告中的数字）
+    # 1. 财务指标准确率（从 Agent 生成的报告中提取数字，与真实财报对比）
     try:
-        r = evaluate_financial_accuracy(symbol)
+        report = state.get("final_report", "") or state.get("draft_report", "")
+        r = evaluate_financial_accuracy(symbol, report_text=report)
         results.append(_result_to_dict(r))
         logger.info(f"[eval] 财务准确率: {r.score}")
     except Exception as e:

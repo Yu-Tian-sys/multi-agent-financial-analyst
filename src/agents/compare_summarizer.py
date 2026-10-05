@@ -1,20 +1,12 @@
 import logging
-import time
 from typing import Dict, Tuple
-
-from openai import OpenAI
 
 from src.config import settings
 from src.db import Database
 from src.observability.tracer import Tracer
+import src.optimization.model_router as router_module
 
 logger = logging.getLogger(__name__)
-
-# 模块级 LLM 客户端单例（和 report_writer 一致，import 时创建一次）
-_client = OpenAI(
-    api_key=settings.deepseek_api_key,
-    base_url=settings.deepseek_base_url,
-)
 
 # 模块级数据库实例（和 main.py 一样用 settings.db_path；SQLite WAL 支持并发读）
 _db = Database(settings.db_path)
@@ -26,34 +18,16 @@ _tracer = Tracer(db=_db)
 MAX_REPORT_CHARS = 8000
 
 
-def _call_llm(prompt: str, max_retries: int = 2) -> Tuple[str, int, float]:
-    """调用 LLM 生成对比总结，带重试。
+def _call_llm(prompt: str) -> Tuple[str, int, float]:
+    """调用 LLM 生成对比总结（走统一 model_router，支持 mock / 降级 / 成本统计）。
 
     Args:
         prompt: 拼好的 prompt
-        max_retries: 最大重试次数
 
     Returns:
-        (content, tokens, cost) 三元组；cost = tokens / 1_000_000 * 1.0
+        (content, tokens, cost) 三元组
     """
-    last_error = None
-    for attempt in range(max_retries + 1):
-        try:
-            response = _client.chat.completions.create(
-                model=settings.model_cheap,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.5,
-            )
-            content = response.choices[0].message.content
-            tokens = response.usage.total_tokens if response.usage else 0
-            cost = tokens / 1_000_000 * 1.0
-            return content, tokens, cost
-        except Exception as e:
-            last_error = e
-            logger.warning(f"[compare] LLM 调用失败（第 {attempt+1} 次）：{e}")
-            if attempt < max_retries:
-                time.sleep(2 ** attempt)
-    raise last_error
+    return router_module.call_llm(prompt, tier="cheap", temperature=0.5)
 
 
 def summarize(task_id_a: str, task_id_b: str) -> Dict[str, object]:

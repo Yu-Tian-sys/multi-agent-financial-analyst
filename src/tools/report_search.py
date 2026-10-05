@@ -9,14 +9,9 @@ import logging
 from typing import List, Dict
 
 from src.data import get_provider
+from src.data.router import resolve_symbol
 
 logger = logging.getLogger(__name__)
-
-
-MOCK_REPORTS = [
-    {"title": "科技板块 2025 年展望", "broker": "高盛", "date": "2025-01-05", "summary": "看好 AI、云计算、半导体三大方向。预计科技板块整体跑赢大盘 10%。"},
-    {"title": "新能源车行业深度报告", "broker": "中信证券", "date": "2025-01-03", "summary": "新能源车渗透率持续提升，预计 2025 年全球销量突破 2000 万辆。龙头公司受益。"},
-]
 
 
 def search_reports(query: str, limit: int = 5) -> List[Dict]:
@@ -38,10 +33,12 @@ def search_reports(query: str, limit: int = 5) -> List[Dict]:
     results = []
 
     # 获取真实分析师评级
-    provider = get_provider(query)
+    # 先解析为标准代码（支持中文别名如"苹果"→AAPL）
+    symbol = resolve_symbol(query)
+    provider = get_provider(symbol)
     if provider is not None:
         try:
-            ratings = provider.get_analyst_ratings(query)
+            ratings = provider.get_analyst_ratings(symbol)
             for r in ratings[:limit]:
                 title = f"{r.broker}：{r.rating}评级" if r.rating else f"{r.broker}研报"
                 summary_parts = []

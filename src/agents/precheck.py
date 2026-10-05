@@ -1,6 +1,6 @@
 import time
 import logging
-from typing import Dict
+from typing import Dict, Optional
 from collections import defaultdict
 
 from src.state import FinanceState
@@ -14,33 +14,65 @@ logger = logging.getLogger(__name__)
 
 
 # ========================================
-# 限流器（内存版，第 6 周换 Redis）
+# 限流器（Redis 优先，内存降级）
 # ========================================
+
+_redis_client: Optional["redis.Redis"] = None
+_redis_available: bool = False
+
+
+def _get_redis():
+    """懒加载 Redis 客户端，连接失败则标记不可用并降级到内存"""
+    global _redis_client, _redis_available
+    if _redis_client is not None:
+        return _redis_client
+    try:
+        import redis
+        _redis_client = redis.Redis.from_url(
+            settings.redis_url, socket_connect_timeout=2, socket_timeout=2
+        )
+        _redis_client.ping()
+        _redis_available = True
+        logger.info("[precheck] Redis 限流已启用")
+    except Exception as e:
+        _redis_available = False
+        _redis_client = None
+        logger.warning(f"[precheck] Redis 不可用，限流降级到内存模式：{e}")
+    return _redis_client
+
+
+# 内存降级存储
 _rate_log: Dict[str, list] = defaultdict(list)
 _daily_rate_log: Dict[str, dict] = {}
+_cost_log: Dict[str, dict] = {}
 
 
 def _check_rate_limit(user_id: str) -> tuple:
     """
     检查用户请求频率（每分钟窗口）
 
-    Args:
-        user_id: 用户 ID
-
     Returns:
         (是否通过, 错误信息)
     """
+    r = _get_redis()
+    if r is not None:
+        key = f"rate:{user_id}:{int(time.time() // 60)}"
+        try:
+            count = r.incr(key)
+            if count == 1:
+                r.expire(key, 65)
+            if count > settings.rate_limit_per_minute:
+                return False, f"请求过于频繁，请稍后再试（每分钟最多 {settings.rate_limit_per_minute} 次）"
+            return True, None
+        except Exception as e:
+            logger.warning(f"[precheck] Redis 限流失败，降级内存：{e}")
+
+    # 内存降级
     now = time.time()
-    window = 60  # 1 分钟窗口
-
-    # 清理过期记录
+    window = 60
     _rate_log[user_id] = [t for t in _rate_log[user_id] if now - t < window]
-
-    # 检查是否超限
     if len(_rate_log[user_id]) >= settings.rate_limit_per_minute:
         return False, f"请求过于频繁，请稍后再试（每分钟最多 {settings.rate_limit_per_minute} 次）"
-
-    # 记录本次请求
     _rate_log[user_id].append(now)
     return True, None
 
@@ -49,61 +81,82 @@ def _check_daily_limit(user_id: str) -> tuple:
     """
     检查用户每日请求次数上限
 
-    Args:
-        user_id: 用户 ID
-
     Returns:
         (是否通过, 错误信息)
     """
     today = time.strftime("%Y-%m-%d")
+    r = _get_redis()
+    if r is not None:
+        key = f"daily:{user_id}:{today}"
+        try:
+            count = r.incr(key)
+            if count == 1:
+                r.expire(key, 86400)
+            if count > settings.rate_limit_per_day:
+                return False, f"今日请求已达上限（{settings.rate_limit_per_day} 次/天），请明天再试"
+            return True, None
+        except Exception as e:
+            logger.warning(f"[precheck] Redis 日限流失败，降级内存：{e}")
+
+    # 内存降级
     if user_id not in _daily_rate_log or _daily_rate_log[user_id]["date"] != today:
         _daily_rate_log[user_id] = {"date": today, "count": 0}
-
     if _daily_rate_log[user_id]["count"] >= settings.rate_limit_per_day:
         return False, f"今日请求已达上限（{settings.rate_limit_per_day} 次/天），请明天再试"
-
     _daily_rate_log[user_id]["count"] += 1
     return True, None
 
 
 # ========================================
-# 成本熔断（内存版）
+# 成本熔断（Redis 优先，内存降级）
 # ========================================
-_cost_log: Dict[str, dict] = {}
 
 
 def _check_cost_limit(user_id: str) -> tuple:
     """
     检查用户今日成本是否超限
 
-    Args:
-        user_id: 用户 ID
-
     Returns:
         (是否通过, 错误信息)
     """
     today = time.strftime("%Y-%m-%d")
-    key = f"{user_id}:{today}"
+    r = _get_redis()
+    if r is not None:
+        key = f"cost:{user_id}:{today}"
+        try:
+            current = float(r.get(key) or 0)
+            if current >= settings.daily_cost_limit:
+                return False, f"今日额度已用完（{settings.daily_cost_limit}元），请明天再试"
+            return True, None
+        except Exception as e:
+            logger.warning(f"[precheck] Redis 成本检查失败，降级内存：{e}")
 
+    # 内存降级
+    key = f"{user_id}:{today}"
     if key not in _cost_log:
         _cost_log[key] = {"cost": 0.0, "date": today}
-
     current = _cost_log[key]["cost"]
     if current >= settings.daily_cost_limit:
         return False, f"今日额度已用完（{settings.daily_cost_limit}元），请明天再试"
-
     return True, None
 
 
 def add_cost(user_id: str, cost: float) -> None:
     """
     累加用户成本（供其他 Agent 调用）
-
-    Args:
-        user_id: 用户 ID
-        cost: 本次成本（元）
     """
     today = time.strftime("%Y-%m-%d")
+    r = _get_redis()
+    if r is not None:
+        key = f"cost:{user_id}:{today}"
+        try:
+            r.incrbyfloat(key, cost)
+            r.expire(key, 86400)
+            return
+        except Exception as e:
+            logger.warning(f"[precheck] Redis 成本累加失败，降级内存：{e}")
+
+    # 内存降级
     key = f"{user_id}:{today}"
     if key not in _cost_log:
         _cost_log[key] = {"cost": 0.0, "date": today}

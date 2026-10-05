@@ -83,13 +83,26 @@ def evaluate_stock(symbol: str) -> StockEvaluation:
             name="分析师共识对比", score=0, passed=False, message=str(e)
         ))
 
-    # 注：报告完整性、辩论质量需要运行完整流水线后传入结果
-    # 这里先占位，等流水线集成后补充
+    # 4. 报告完整性（CLI 模式用财务文本作为代理，检测结构完整性）
+    try:
+        if provider is not None:
+            text = provider.get_financial_text(symbol)
+            r = evaluate_report_completeness(text)
+            r.message = f"[CLI代理] {r.message}"
+        else:
+            r = EvaluationResult(name="报告完整性", score=0.0, passed=False, message="无法获取数据")
+        stock_eval.results.append(r)
+        logger.info(f"[eval] {symbol} 报告完整性: {r.score}")
+    except Exception as e:
+        logger.error(f"[eval] {symbol} 报告完整性评估失败: {e}")
+        stock_eval.results.append(EvaluationResult(
+            name="报告完整性", score=0, passed=False, message=str(e)
+        ))
+
+    # 5. 辩论质量（CLI 模式无辩论记录，诚实标注需运行完整流水线）
     stock_eval.results.append(EvaluationResult(
-        name="报告完整性", score=0.5, passed=True, message="需运行完整流水线后评估"
-    ))
-    stock_eval.results.append(EvaluationResult(
-        name="辩论质量", score=0.5, passed=True, message="需运行完整流水线后评估"
+        name="辩论质量", score=0.0, passed=False,
+        message="CLI 模式无辩论记录，需运行完整流水线评估"
     ))
 
     return stock_eval
