@@ -5,8 +5,8 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# 加载 .env 文件
-load_dotenv()
+# 加载 .env 文件（override=True 确保 .env 优先级高于系统环境变量，避免误用其他项目的同名 key）
+load_dotenv(override=True)
 
 class Settings(BaseSettings):
     """全局配置"""
